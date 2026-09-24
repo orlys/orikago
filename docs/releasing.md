@@ -5,8 +5,8 @@ Three artifacts ship together, and they do **not** all go to the same place.
 | Artifact | What it is | Where it goes | Why |
 |---|---|---|---|
 | `Orikago.LanguageService.vsix` | The Visual Studio extension | **GitHub Release asset** | GitHub Packages has no VSIX registry — it only hosts npm, NuGet, Maven, Gradle, RubyGems and container images. A release asset is the standard distribution point for a VSIX outside the Marketplace. |
-| `Orikago.Sdk.<version>.nupkg` | The MSBuild project SDK | **GitHub Packages (NuGet)** *and* release asset | This one genuinely is a NuGet package, and hosting it on a feed removes the "register a local folder feed first" step from the README. |
-| `Orikago.Templates.<version>.nupkg` | `dotnet new` templates | **GitHub Packages (NuGet)** *and* release asset | Same reasoning. |
+| `Orikago.Sdk.<version>.nupkg` | The MSBuild project SDK | **nuget.org** *and* release asset | This one genuinely is a NuGet package; from nuget.org `Sdk="Orikago.Sdk/<version>"` resolves with no extra feed configuration. |
+| `Orikago.Templates.<version>.nupkg` | `dotnet new` templates | **nuget.org** *and* release asset | Same reasoning. |
 
 ## Build
 
@@ -30,27 +30,17 @@ git push origin v0.1.0
 gh release create v0.1.0 (Get-ChildItem ./dist/* | ForEach-Object FullName) `
     --title "v0.1.0" --notes-file release-notes.md
 
-# 3. Push the NuGet packages to GitHub Packages
-#    (a classic PAT with write:packages is required; GITHUB_TOKEN works in CI)
-dotnet nuget add source "https://nuget.pkg.github.com/orlys/index.json" `
-    --name github --username orlys --password $env:GITHUB_TOKEN --store-password-in-clear-text
-dotnet nuget push "./dist/*.nupkg" --source github --api-key $env:GITHUB_TOKEN
+# 3. Push the NuGet packages to nuget.org (API key scoped to Orikago.*)
+dotnet nuget push "./dist/*.nupkg" --api-key $env:NUGET_ORG_API_KEY --source https://api.nuget.org/v3/index.json
 ```
 
 ## Consuming the published SDK
 
-Once the packages are on GitHub Packages, a consumer no longer needs a local
-folder feed — a user-level source is enough:
+The packages are on nuget.org, so the default NuGet source is enough:
 
 ```powershell
-dotnet nuget add source "https://nuget.pkg.github.com/orlys/index.json" `
-    --name orikago --username <github-user> --password <PAT-with-read:packages> `
-    --store-password-in-clear-text --configfile $env:APPDATA\NuGet\NuGet.Config
+dotnet new install Orikago.Templates::0.1.0-preview
 ```
-
-Note that GitHub Packages requires authentication even for public packages —
-this is a GitHub limitation, not a choice made here. If that friction matters,
-publish to nuget.org instead; the packages carry no GitHub-specific metadata.
 
 ## Versioning
 

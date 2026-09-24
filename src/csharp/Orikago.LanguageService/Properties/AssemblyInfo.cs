@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Orika")]
 [assembly: AssemblyProduct("Orikago Language Service")]
-[assembly: AssemblyCopyright("Copyright © Orika 2026")]
+[assembly: AssemblyCopyright("Copyright © Orlys 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

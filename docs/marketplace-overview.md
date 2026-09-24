@@ -6,6 +6,13 @@
 
 Open, edit, build and debug Go projects in Visual Studio the way you would a C# project.
 
+## Why Orikago
+
+Go tooling lives in VS Code and GoLand; neither can open a Visual Studio solution. Orikago is
+for teams that already live in Visual Studio: a `.goproj` sits in the same `.slnx` as your
+`.csproj` files, builds with the same `dotnet build` / Build Solution, and debugs with the same F5.
+One solution, one IDE, one CI command for both languages.
+
 ## Features
 
 - **`.goproj` projects** — Go modules load in Solution Explorer and build, run and test through MSBuild, driven by the [Orikago.Sdk](https://www.nuget.org/packages/Orikago.Sdk) project SDK.

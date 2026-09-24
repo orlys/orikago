@@ -1,8 +1,11 @@
 # Orikago — Go for Visual Studio
 
-> **Preview / experimental.** Orikago leans on Visual Studio internals that carry no compatibility promise; a VS update can break it. Not affiliated with Microsoft or the Go team.
+> **Preview / experimental.** Orikago leans on Visual Studio internals that carry no
+> compatibility promise; a VS update can break it. Not affiliated with Microsoft or the Go team.
 
-![Visual Studio editing a Go project with gopls diagnostics, a breakpoint, Go-specific Dependencies commands and the Orikago output pane](https://raw.githubusercontent.com/orlys/orikago/main/img/1.png)
+![Visual Studio editing a Go project with gopls diagnostics, a breakpoint, Go-specific
+Dependencies commands and the Orikago output
+pane](https://raw.githubusercontent.com/orlys/orikago/main/img/1.png)
 
 Open, edit, build and debug Go projects in Visual Studio the way you would a C# project.
 
@@ -10,17 +13,23 @@ Open, edit, build and debug Go projects in Visual Studio the way you would a C# 
 
 Go tooling lives in VS Code and GoLand; neither can open a Visual Studio solution. Orikago is
 for teams that already live in Visual Studio: a `.goproj` sits in the same `.slnx` as your
-`.csproj` files, builds with the same `dotnet build` / Build Solution, and debugs with the same F5.
-One solution, one IDE, one CI command for both languages.
+`.csproj` files, builds with the same `dotnet build` / Build Solution, and debugs with the
+same F5. One solution, one IDE, one CI command for both languages.
 
 ## Features
 
-- **`.goproj` projects** — Go modules load in Solution Explorer and build, run and test through MSBuild, driven by the [Orikago.Sdk](https://www.nuget.org/packages/Orikago.Sdk) project SDK.
-- **IntelliSense via gopls** — completion, hover, signature help, go to definition, find references, rename, formatting and live diagnostics.
-- **F5 debugging via delve** — breakpoints, stepping, locals, call stacks and goroutines; an unrecovered panic breaks at the panic site.
-- **Go-aware Dependencies node** — *Add Go Module Reference…* and *Tidy Go Modules* instead of NuGet commands.
-- **Go diagnostics in the Error List** — compiler, `go vet` and test failures appear with file and line; double-click to jump.
-- **Project templates** — *Orikago Console App* and *Orikago Class Library* in the New Project dialog.
+- **`.goproj` projects** — Go modules load in Solution Explorer and build, run and test through
+  MSBuild, driven by the [Orikago.Sdk](https://www.nuget.org/packages/Orikago.Sdk) project SDK.
+- **IntelliSense via gopls** — completion, hover, signature help, go to definition, find
+  references, rename, formatting and live diagnostics.
+- **F5 debugging via delve** — breakpoints, stepping, locals, call stacks and goroutines; an
+  unrecovered panic breaks at the panic site.
+- **Go-aware Dependencies node** — *Add Go Module Reference…* and *Tidy Go Modules* instead of
+  NuGet commands.
+- **Go diagnostics in the Error List** — compiler, `go vet` and test failures appear with file
+  and line; double-click to jump.
+- **Project templates** — *Orikago Console App* and *Orikago Class Library*
+  in the New Project dialog.
 
 ## Requirements
 

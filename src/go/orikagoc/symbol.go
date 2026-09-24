@@ -15,10 +15,11 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// declaredAt is the declaration position reported by the symbol command.
 type declaredAt struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-	Col  int    `json:"col"`
+	File   string `json:"file"`
+	Line   int    `json:"line"`
+	Column int    `json:"col"`
 }
 
 // symbolResult is the object printed by the symbol command. A nil Name
@@ -30,64 +31,73 @@ type symbolResult struct {
 	DeclaredAt *declaredAt `json:"declaredAt,omitempty"`
 }
 
-// cmdSymbol implements "orikagoc symbol <file.go> <line> <col>". The
+// symbolCommand implements "orikagoc symbol <file.go> <line> <col>". The
 // column is 1-based and counted in UTF-16 code units (see columns.go).
 // The module directory is taken from -dir or inferred from the nearest
 // go.mod above the file.
-func cmdSymbol(args []string) int {
+func symbolCommand(args []string) int {
+	// Parse the flags and the three positional arguments.
 	fs := newFlagSet("symbol")
-	dirFlag := fs.String("dir", "", "module `directory` the file belongs to (default: inferred from go.mod)")
+	directoryFlag := fs.String("dir", "",
+		"module `directory` the file belongs to (default: inferred from go.mod)")
 	pretty := fs.Bool("pretty", false, "indent the JSON output")
-	var opts buildOptions
-	opts.registerBuildFlags(fs)
-	rest, code := parseArgs(fs, args, 3)
+	var options buildOptions
+	options.registerBuildFlags(fs)
+	rest, code := parseArguments(fs, args, 3)
 	if code >= 0 {
 		return code
 	}
 	if len(rest) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: orikagoc symbol <file.go> <line> <col> [-dir <moduleDir>] [-tags <list>] [-goos <os>] [-goarch <arch>]")
+		fmt.Fprintln(os.Stderr, "usage: orikagoc symbol <file.go> <line> <col> "+
+			"[-dir <moduleDir>] [-tags <list>] [-goos <os>] [-goarch <arch>]")
 		return 2
 	}
+
+	// Validate the file and the 1-based position.
 	file, err := filepath.Abs(rest[0])
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	line, lerr := strconv.Atoi(rest[1])
-	col, cerr := strconv.Atoi(rest[2])
-	if lerr != nil || cerr != nil || line < 1 || col < 1 {
+	line, lineErr := strconv.Atoi(rest[1])
+	column, columnErr := strconv.Atoi(rest[2])
+	if lineErr != nil || columnErr != nil || line < 1 || column < 1 {
 		fmt.Fprintln(os.Stderr, "orikagoc: line and col must be positive integers (1-based)")
 		return 2
 	}
 	if _, err := os.Stat(file); err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
 
-	moduleDir := *dirFlag
-	if moduleDir == "" {
-		moduleDir = findModuleRoot(filepath.Dir(file))
+	// Resolve the module directory: -dir, else the nearest go.mod, else the
+	// file's own directory.
+	moduleDirectory := *directoryFlag
+	if moduleDirectory == "" {
+		moduleDirectory = findModuleRoot(filepath.Dir(file))
 	}
-	if moduleDir == "" {
-		moduleDir = filepath.Dir(file)
+	if moduleDirectory == "" {
+		moduleDirectory = filepath.Dir(file)
 	}
-	l, err := newLoader(moduleDir, opts)
+
+	// Look the symbol up and print it.
+	packageLoader, err := newLoader(moduleDirectory, options)
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	res, err := l.symbolAt(file, line, col)
+	result, err := packageLoader.symbolAt(file, line, column)
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	return emit(res, *pretty)
+	return emit(result, *pretty)
 }
 
 // symbolAt loads the package containing file and reports the symbol used
 // or declared at the given 1-based position, whose column is in UTF-16
 // code units. Errors in the source are tolerated: the lookup works off
 // whatever go/types could compute.
-func (l *loader) symbolAt(file string, line, utf16Col int) (symbolResult, error) {
+func (l *loader) symbolAt(file string, line, utf16Column int) (symbolResult, error) {
 	// go/token columns are byte offsets within the line; the protocol
 	// speaks UTF-16 code units, so translate before matching positions.
-	byteCol := l.lines.toByteCol(file, line, utf16Col)
+	byteColumn := l.lines.toByteColumn(file, line, utf16Column)
 
 	target, info := l.loadFileForSymbol(file)
 	if target == nil {
@@ -100,7 +110,8 @@ func (l *loader) symbolAt(file string, line, utf16Col int) (symbolResult, error)
 		}
 	}
 
-	id := identAt(l.fset, target, line, byteCol)
+	// Find the identifier and the object it defines or uses.
+	id := identifierAt(l.fset, target, line, byteColumn)
 	if id == nil {
 		return symbolResult{}, nil
 	}
@@ -112,20 +123,21 @@ func (l *loader) symbolAt(file string, line, utf16Col int) (symbolResult, error)
 		return symbolResult{}, nil
 	}
 
+	// Describe the object and where it is declared.
 	name := obj.Name()
-	res := symbolResult{Name: &name, Kind: objectKind(obj), Type: objectType(obj)}
+	result := symbolResult{Name: &name, Kind: objectKind(obj), Type: objectType(obj)}
 	if p := l.fset.Position(obj.Pos()); p.IsValid() {
-		declFile := p.Filename
-		if abs, err := filepath.Abs(declFile); err == nil {
-			declFile = abs
+		declarationFile := p.Filename
+		if abs, err := filepath.Abs(declarationFile); err == nil {
+			declarationFile = abs
 		}
-		res.DeclaredAt = &declaredAt{
-			File: declFile,
-			Line: p.Line,
-			Col:  l.lines.toUTF16Col(declFile, p.Line, p.Column),
+		result.DeclaredAt = &declaredAt{
+			File:   declarationFile,
+			Line:   p.Line,
+			Column: l.lines.toUTF16Column(declarationFile, p.Line, p.Column),
 		}
 	}
-	return res, nil
+	return result, nil
 }
 
 // loadFileForSymbol loads the package in the file's own directory (test
@@ -136,7 +148,7 @@ func (l *loader) symbolAt(file string, line, utf16Col int) (symbolResult, error)
 func (l *loader) loadFileForSymbol(file string) (*ast.File, *types.Info) {
 	dir := filepath.Dir(file)
 	isTest := strings.HasSuffix(strings.ToLower(filepath.Base(file)), "_test.go")
-	cfg := l.opts.config(dir, l.fset, isTest)
+	cfg := l.options.configuration(dir, l.fset, isTest)
 	pkgs, err := packages.Load(cfg, ".")
 	if err != nil {
 		return nil, nil
@@ -170,8 +182,9 @@ func (l *loader) standaloneFile(file string) (*ast.File, *types.Info, error) {
 		Uses: map[*ast.Ident]types.Object{},
 	}
 	conf := types.Config{
-		Importer:    importer.ForCompiler(l.fset, "source", nil),
-		Error:       func(error) {}, // best effort: errors are not this command's job
+		Importer: importer.ForCompiler(l.fset, "source", nil),
+		// Best effort: errors are not this command's job.
+		Error:       func(error) {},
 		FakeImportC: true,
 	}
 	pkgName := "main"
@@ -182,9 +195,9 @@ func (l *loader) standaloneFile(file string) (*ast.File, *types.Info, error) {
 	return f, info, nil
 }
 
-// identAt finds the identifier spanning the given 1-based line and 1-based
-// *byte* column, if any.
-func identAt(fset *token.FileSet, f *ast.File, line, byteCol int) *ast.Ident {
+// identifierAt finds the identifier spanning the given 1-based line and
+// 1-based *byte* column, if any.
+func identifierAt(fset *token.FileSet, f *ast.File, line, byteColumn int) *ast.Ident {
 	var found *ast.Ident
 	ast.Inspect(f, func(n ast.Node) bool {
 		if found != nil || n == nil {
@@ -196,7 +209,7 @@ func identAt(fset *token.FileSet, f *ast.File, line, byteCol int) *ast.Ident {
 		}
 		p := fset.Position(id.Pos())
 		e := fset.Position(id.End())
-		if p.Line == line && byteCol >= p.Column && byteCol < e.Column {
+		if p.Line == line && byteColumn >= p.Column && byteColumn < e.Column {
 			found = id
 		}
 		return false
@@ -204,6 +217,7 @@ func identAt(fset *token.FileSet, f *ast.File, line, byteCol int) *ast.Ident {
 	return found
 }
 
+// objectKind names the kind of a go/types object as the protocol spells it.
 func objectKind(obj types.Object) string {
 	switch o := obj.(type) {
 	case *types.PkgName:
@@ -230,13 +244,16 @@ func objectKind(obj types.Object) string {
 	}
 }
 
+// objectType renders the type of a go/types object, or "" when it has
+// no meaningful type.
 func objectType(obj types.Object) string {
 	t := obj.Type()
 	if t == nil {
 		return ""
 	}
 	if b, ok := t.(*types.Basic); ok && b.Kind() == types.Invalid {
-		return "" // package names and builtins have no meaningful type
+		// Package names and builtins have no meaningful type.
+		return ""
 	}
 	return t.String()
 }

@@ -1,139 +1,162 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Command table for the Orikago package.
+<!-- Command table for the Orikago package. -->
+<!-- Four commands, localized via per-language Strings sets below: "Add Go Module -->
+<!-- Reference..." and "Tidy Go Modules" on the private Dependencies-node context -->
+<!-- menu, "Run Go Generators" and "Run Go Vet" on the shared project-node menu. -->
+<!-- The project-node commands carry DefaultInvisible + DynamicVisibility + a -->
+<!-- VisibilityConstraints entry that keep them hidden until the uiContextGoProject -->
+<!-- UI context is active; that context is turned on by the ProvideUIContextRule on -->
+<!-- OrikagoPackage when the ACTIVE project has the Orikago capability, so the shell -->
+<!-- shows/hides the items without loading the package. The package itself is -->
+<!-- background-loaded on that same context (ProvideAutoLoad), so its NuGet menu -->
+<!-- filter is in place before the Tools menu is built. -->
+<CommandTable
+    xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <Extern href="stdidcmd.h" />
+    <Extern href="vsshlids.h" />
 
-  One command: "Add Go Module Reference..." on the Dependencies-node context
-  menu (localized via per-language Strings sets below).
-  DefaultInvisible + DynamicVisibility + the VisibilityConstraints entry keep
-  it hidden until the uiContextGoProject UI context is active; that context is
-  turned on by the ProvideUIContextRule on OrikagoPackage when the ACTIVE
-  project has the Orikago capability, so the shell shows/hides the item
-  correctly without ever loading the package. The package only loads when the
-  command is actually invoked.
--->
-<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-  <Extern href="stdidcmd.h" />
-  <Extern href="vsshlids.h" />
+    <Commands package="guidOrikagoPackage">
+        <Menus>
+            <!-- A PRIVATE context menu for the Go project's Dependencies root. -->
+            <!-- GoDependenciesContextMenuProvider maps the DependenciesRootNode tree -->
+            <!-- item here instead of the shell's shared IDM_VS_CTXT_REFERENCEROOT, -->
+            <!-- which is what removes "Add Project Reference...", "Manage NuGet -->
+            <!-- Packages..." and friends wholesale - they are placements on the -->
+            <!-- shared menu, unreachable one by one. -->
+            <Menu
+                guid="guidOrikagoCmdSet"
+                id="menuGoDependenciesContext"
+                type="Context"
+                priority="0x0000">
+                <Strings>
+                    <ButtonText>Go Dependencies</ButtonText>
+                </Strings>
+            </Menu>
 
-  <Commands package="guidOrikagoPackage">
-    <Menus>
-      <!-- A PRIVATE context menu for the Go project's Dependencies root.
-           GoDependenciesContextMenuProvider maps the DependenciesRootNode tree
-           item here instead of the shell's shared IDM_VS_CTXT_REFERENCEROOT,
-           which is what removes "Add Project Reference...", "Manage NuGet
-           Packages..." and friends wholesale - they are placements on the
-           shared menu, unreachable one by one. -->
-      <Menu guid="guidOrikagoCmdSet" id="menuGoDependenciesContext" type="Context" priority="0x0000">
-        <Strings>
-          <ButtonText>Go Dependencies</ButtonText>
-        </Strings>
-      </Menu>
+        </Menus>
 
-    </Menus>
+        <Groups>
+            <Group guid="guidOrikagoCmdSet" id="grpDependenciesContext" priority="0x0100">
+                <Parent guid="guidOrikagoCmdSet" id="menuGoDependenciesContext" />
+            </Group>
 
-    <Groups>
-      <Group guid="guidOrikagoCmdSet" id="grpDependenciesContext" priority="0x0100">
-        <Parent guid="guidOrikagoCmdSet" id="menuGoDependenciesContext" />
-      </Group>
+            <!-- Go tooling that belongs to the project as a whole rather than to its -->
+            <!-- dependencies. Placed on the shell's shared project menu and gated by -->
+            <!-- the uiContextGoProject visibility constraint, so it never shows up -->
+            <!-- on a C# project. -->
+            <Group guid="guidOrikagoCmdSet" id="grpProjectGoTools" priority="0x0350">
+                <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_PROJNODE" />
+            </Group>
+        </Groups>
 
-      <!-- Go tooling that belongs to the project as a whole rather than to its
-           dependencies. Placed on the shell's shared project menu and gated by
-           the uiContextGoProject visibility constraint, so it never shows up
-           on a C# project. -->
-      <Group guid="guidOrikagoCmdSet" id="grpProjectGoTools" priority="0x0350">
-        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_PROJNODE" />
-      </Group>
-    </Groups>
+        <Buttons>
+            <!-- No visibility gymnastics needed: the only route to this menu is the -->
+            <!-- AppliesTo("Orikago") menu provider. -->
+            <Button
+                guid="guidOrikagoCmdSet"
+                id="cmdidAddGoModuleReference"
+                priority="0x0100"
+                type="Button">
+                <Parent guid="guidOrikagoCmdSet" id="grpDependenciesContext" />
+                <!-- Default (en-us) strings are the fallback; language-specific sets -->
+                <!-- below are picked by the IDE's UI language at ctmenu merge. -->
+                <Strings>
+                    <ButtonText>Add Go &amp;Module Reference...</ButtonText>
+                </Strings>
+                <Strings language="zh-TW">
+                    <ButtonText>加入 Go 模組參考(&amp;M)...</ButtonText>
+                </Strings>
+                <Strings language="zh-CN">
+                    <ButtonText>添加 Go 模块引用(&amp;M)...</ButtonText>
+                </Strings>
+            </Button>
 
-    <Buttons>
-      <!-- No visibility gymnastics needed: the only route to this menu is the
-           AppliesTo("Orikago") menu provider. -->
-      <Button guid="guidOrikagoCmdSet" id="cmdidAddGoModuleReference" priority="0x0100" type="Button">
-        <Parent guid="guidOrikagoCmdSet" id="grpDependenciesContext" />
-        <!-- Default (en-us) strings are the fallback; language-specific sets
-             below are picked by the IDE's UI language at ctmenu merge. -->
-        <Strings>
-          <ButtonText>Add Go &amp;Module Reference...</ButtonText>
-        </Strings>
-        <Strings language="zh-TW">
-          <ButtonText>加入 Go 模組參考(&amp;M)...</ButtonText>
-        </Strings>
-        <Strings language="zh-CN">
-          <ButtonText>添加 Go 模块引用(&amp;M)...</ButtonText>
-        </Strings>
-      </Button>
+            <!-- go mod tidy: the dependency-list counterpart of Code Cleanup (which -->
+            <!-- is hidden for Go - it only runs Roslyn C#/VB fixers). Source-level -->
+            <!-- tidying is already covered by gopls (gofmt / organize imports). -->
+            <Button
+                guid="guidOrikagoCmdSet"
+                id="cmdidGoModTidy"
+                priority="0x0200"
+                type="Button">
+                <Parent guid="guidOrikagoCmdSet" id="grpDependenciesContext" />
+                <Strings>
+                    <ButtonText>&amp;Tidy Go Modules</ButtonText>
+                </Strings>
+                <Strings language="zh-TW">
+                    <ButtonText>整理 Go 模組相依性(&amp;T)</ButtonText>
+                </Strings>
+                <Strings language="zh-CN">
+                    <ButtonText>整理 Go 模块依赖(&amp;T)</ButtonText>
+                </Strings>
+            </Button>
 
-      <!-- go mod tidy: the dependency-list counterpart of Code Cleanup (which
-           is hidden for Go - it only runs Roslyn C#/VB fixers). Source-level
-           tidying is already covered by gopls (gofmt / organize imports). -->
-      <Button guid="guidOrikagoCmdSet" id="cmdidGoModTidy" priority="0x0200" type="Button">
-        <Parent guid="guidOrikagoCmdSet" id="grpDependenciesContext" />
-        <Strings>
-          <ButtonText>&amp;Tidy Go Modules</ButtonText>
-        </Strings>
-        <Strings language="zh-TW">
-          <ButtonText>整理 Go 模組相依(&amp;T)</ButtonText>
-        </Strings>
-        <Strings language="zh-CN">
-          <ButtonText>整理 Go 模块依赖(&amp;T)</ButtonText>
-        </Strings>
-      </Button>
+            <!-- go generate: runs //go:generate directives. There is no other entry -->
+            <!-- point for it - the build never invokes it (by Go's design). -->
+            <Button
+                guid="guidOrikagoCmdSet"
+                id="cmdidGoGenerate"
+                priority="0x0100"
+                type="Button">
+                <Parent guid="guidOrikagoCmdSet" id="grpProjectGoTools" />
+                <CommandFlag>DefaultInvisible</CommandFlag>
+                <CommandFlag>DynamicVisibility</CommandFlag>
+                <Strings>
+                    <ButtonText>Run Go &amp;Generators</ButtonText>
+                </Strings>
+                <Strings language="zh-TW">
+                    <ButtonText>執行 Go 產生器(&amp;G)</ButtonText>
+                </Strings>
+                <Strings language="zh-CN">
+                    <ButtonText>运行 Go 生成器(&amp;G)</ButtonText>
+                </Strings>
+            </Button>
 
-      <!-- go generate: runs //go:generate directives. There is no other entry
-           point for it - the build never invokes it (by Go's design). -->
-      <Button guid="guidOrikagoCmdSet" id="cmdidGoGenerate" priority="0x0100" type="Button">
-        <Parent guid="guidOrikagoCmdSet" id="grpProjectGoTools" />
-        <CommandFlag>DefaultInvisible</CommandFlag>
-        <CommandFlag>DynamicVisibility</CommandFlag>
-        <Strings>
-          <ButtonText>Run Go &amp;Generators</ButtonText>
-        </Strings>
-        <Strings language="zh-TW">
-          <ButtonText>執行 Go 產生器(&amp;G)</ButtonText>
-        </Strings>
-        <Strings language="zh-CN">
-          <ButtonText>运行 Go 生成器(&amp;G)</ButtonText>
-        </Strings>
-      </Button>
+            <!-- go vet: available at build time via -p:RunGoVet=true, but a one-shot -->
+            <!-- run without rebuilding is what people actually want. -->
+            <Button
+                guid="guidOrikagoCmdSet"
+                id="cmdidGoVet"
+                priority="0x0110"
+                type="Button">
+                <Parent guid="guidOrikagoCmdSet" id="grpProjectGoTools" />
+                <CommandFlag>DefaultInvisible</CommandFlag>
+                <CommandFlag>DynamicVisibility</CommandFlag>
+                <Strings>
+                    <ButtonText>Run Go &amp;Vet</ButtonText>
+                </Strings>
+                <Strings language="zh-TW">
+                    <ButtonText>執行 Go 靜態檢查(&amp;V)</ButtonText>
+                </Strings>
+                <Strings language="zh-CN">
+                    <ButtonText>运行 Go 静态检查(&amp;V)</ButtonText>
+                </Strings>
+            </Button>
+        </Buttons>
+    </Commands>
 
-      <!-- go vet: available at build time via -p:RunGoVet=true, but a one-shot
-           run without rebuilding is what people actually want. -->
-      <Button guid="guidOrikagoCmdSet" id="cmdidGoVet" priority="0x0110" type="Button">
-        <Parent guid="guidOrikagoCmdSet" id="grpProjectGoTools" />
-        <CommandFlag>DefaultInvisible</CommandFlag>
-        <CommandFlag>DynamicVisibility</CommandFlag>
-        <Strings>
-          <ButtonText>Run Go &amp;Vet</ButtonText>
-        </Strings>
-        <Strings language="zh-TW">
-          <ButtonText>執行 Go 靜態檢查(&amp;V)</ButtonText>
-        </Strings>
-        <Strings language="zh-CN">
-          <ButtonText>运行 Go 静态检查(&amp;V)</ButtonText>
-        </Strings>
-      </Button>
-    </Buttons>
-  </Commands>
+    <VisibilityConstraints>
+        <VisibilityItem
+            guid="guidOrikagoCmdSet"
+            id="cmdidGoGenerate"
+            context="uiContextGoProject" />
+        <VisibilityItem guid="guidOrikagoCmdSet" id="cmdidGoVet" context="uiContextGoProject" />
+    </VisibilityConstraints>
 
-  <VisibilityConstraints>
-    <VisibilityItem guid="guidOrikagoCmdSet" id="cmdidGoGenerate" context="uiContextGoProject" />
-    <VisibilityItem guid="guidOrikagoCmdSet" id="cmdidGoVet" context="uiContextGoProject" />
-  </VisibilityConstraints>
-
-  <Symbols>
-    <GuidSymbol name="guidOrikagoPackage" value="{9C4E9A2B-7D31-4F5C-A1E8-52B60D3F8E74}" />
-    <GuidSymbol name="guidOrikagoCmdSet" value="{1F6D3B85-42A9-4E0C-9B7D-E85C2A94F316}">
-      <IDSymbol name="menuGoDependenciesContext" value="0x2000" />
-      <IDSymbol name="grpDependenciesContext" value="0x1010" />
-      <IDSymbol name="grpProjectGoTools" value="0x1011" />
-      <IDSymbol name="cmdidAddGoModuleReference" value="0x0100" />
-      <IDSymbol name="cmdidGoModTidy" value="0x0101" />
-      <IDSymbol name="cmdidGoGenerate" value="0x0102" />
-      <IDSymbol name="cmdidGoVet" value="0x0103" />
-    </GuidSymbol>
-    <!-- Must match OrikagoPackage.UiContextGuidString. -->
-    <GuidSymbol name="uiContextGoProject" value="{A7B54C29-8E13-4D6F-92A5-3D1E7F60C8B2}" />
-  </Symbols>
+    <Symbols>
+        <GuidSymbol name="guidOrikagoPackage" value="{9C4E9A2B-7D31-4F5C-A1E8-52B60D3F8E74}" />
+        <!-- The symbols of guidOrikagoCmdSet and uiContextGoProject must match -->
+        <!-- Definitions/OrikagoCommandTable.cs. -->
+        <GuidSymbol name="guidOrikagoCmdSet" value="{1F6D3B85-42A9-4E0C-9B7D-E85C2A94F316}">
+            <IDSymbol name="menuGoDependenciesContext" value="0x2000" />
+            <IDSymbol name="grpDependenciesContext" value="0x1010" />
+            <IDSymbol name="grpProjectGoTools" value="0x1011" />
+            <IDSymbol name="cmdidAddGoModuleReference" value="0x0100" />
+            <IDSymbol name="cmdidGoModTidy" value="0x0101" />
+            <IDSymbol name="cmdidGoGenerate" value="0x0102" />
+            <IDSymbol name="cmdidGoVet" value="0x0103" />
+        </GuidSymbol>
+        <GuidSymbol name="uiContextGoProject" value="{A7B54C29-8E13-4D6F-92A5-3D1E7F60C8B2}" />
+    </Symbols>
 </CommandTable>
-
-

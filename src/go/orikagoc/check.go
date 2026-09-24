@@ -10,39 +10,45 @@ type checkResult struct {
 	Diagnostics []diagnostic `json:"diagnostics"`
 }
 
-// cmdCheck implements "orikagoc check <moduleDir> [-tags ...] [-goos ...]
-// [-goarch ...]": a module-aware type-check of every package in the
-// module, driven by golang.org/x/tools/go/packages (and therefore by the
-// real `go list`). Parse and type errors are data — they become
+// checkCommand implements "orikagoc check <moduleDir> [-tags ...]
+// [-goos ...] [-goarch ...]": a module-aware type-check of every package
+// in the module, driven by golang.org/x/tools/go/packages (and therefore
+// by the real `go list`). Parse and type errors are data — they become
 // diagnostics and the exit code stays 0; only a failure of the toolchain
 // itself is an infrastructure error.
-func cmdCheck(args []string) int {
+func checkCommand(args []string) int {
+	// Parse the flags and the single module directory argument.
 	fs := newFlagSet("check")
 	pretty := fs.Bool("pretty", false, "indent the JSON output")
-	var opts buildOptions
-	opts.registerBuildFlags(fs)
-	rest, code := parseArgs(fs, args, 1)
+	var options buildOptions
+	options.registerBuildFlags(fs)
+	rest, code := parseArguments(fs, args, 1)
 	if code >= 0 {
 		return code
 	}
 	if len(rest) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: orikagoc check <moduleDir> [-tags <list>] [-goos <os>] [-goarch <arch>]")
+		fmt.Fprintln(os.Stderr,
+			"usage: orikagoc check <moduleDir> [-tags <list>] [-goos <os>] [-goarch <arch>]")
 		return 2
 	}
-	fi, err := os.Stat(rest[0])
+
+	// The module directory must exist and be a directory.
+	info, err := os.Stat(rest[0])
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	if !fi.IsDir() {
-		return infra(fmt.Errorf("%s is not a directory", rest[0]))
+	if !info.IsDir() {
+		return infrastructureFailure(fmt.Errorf("%s is not a directory", rest[0]))
 	}
-	l, err := newLoader(rest[0], opts)
+
+	// Type-check the module and print its diagnostics.
+	packageLoader, err := newLoader(rest[0], options)
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	diags, err := l.checkModule()
+	diagnostics, err := packageLoader.checkModule()
 	if err != nil {
-		return infra(err)
+		return infrastructureFailure(err)
 	}
-	return emit(checkResult{Diagnostics: diags}, *pretty)
+	return emit(checkResult{Diagnostics: diagnostics}, *pretty)
 }

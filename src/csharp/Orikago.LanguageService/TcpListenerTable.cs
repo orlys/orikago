@@ -1,97 +1,131 @@
+namespace Orikago.LanguageService;
+
 using System;
 using System.Net;
 using System.Runtime.InteropServices;
 
-namespace Orikago.LanguageService
+/// <summary>
+/// Answers "which loopback port is process N listening on?".
+/// </summary>
+/// <remarks>
+/// <see cref="System.Net.NetworkInformation.IPGlobalProperties.GetActiveTcpListeners"/>
+/// reports endpoints but not their owners, which is not enough: a readiness
+/// check that only asks "is anything listening on this port?" cannot tell
+/// the process it started apart from whatever else happened to bind the
+/// same port. GetExtendedTcpTable carries the owning PID, so dlv can be let
+/// pick its own port (:0) and be asked afterwards which one it got - there
+/// is then no window in which the port could belong to someone else.
+/// </remarks>
+internal static class TcpListenerTable
 {
     /// <summary>
-    /// Answers "which loopback port is process N listening on?".
-    /// <para>
-    /// <see cref="System.Net.NetworkInformation.IPGlobalProperties.GetActiveTcpListeners"/>
-    /// reports endpoints but not their owners, which is not enough: a readiness
-    /// check that only asks "is anything listening on this port?" cannot tell
-    /// the process it started apart from whatever else happened to bind the
-    /// same port. GetExtendedTcpTable carries the owning PID, so dlv can be let
-    /// pick its own port (:0) and be asked afterwards which one it got - there
-    /// is then no window in which the port could belong to someone else.
-    /// </para>
+    /// Returns the loopback port <paramref name="processId"/> is listening on.
     /// </summary>
-    internal static class TcpListenerTable
+    /// <remarks>
+    /// Only IPv4 loopback is considered - that is what dlv is told to bind.
+    /// </remarks>
+    /// <param name="processId">The process whose listener is wanted.</param>
+    /// <returns>
+    /// The port, or <c>0</c> when the process is not listening yet or the table is unreadable.
+    /// </returns>
+    public static int FindLoopbackListenerPort(int processId)
     {
-        private const int AF_INET = 2;
-        private const int TCP_TABLE_OWNER_PID_LISTENER = 3;
-        private const int ERROR_INSUFFICIENT_BUFFER = 122;
-        private const uint MIB_TCP_STATE_LISTEN = 2;
+        const int ERROR_INSUFFICIENT_BUFFER = 122;
+        const uint MIB_TCP_STATE_LISTEN = 2;
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct MIB_TCPROW_OWNER_PID
+        // A first call with no buffer reports the size the table needs
+        var size = default(int);
+        var result = QueryListenerTable(IntPtr.Zero, ref size);
+        if ((result != ERROR_INSUFFICIENT_BUFFER) && (result != 0))
         {
-            public uint State;
-            public uint LocalAddr;
-            // Stored network-byte-order in the low two bytes, per MSDN.
-            public byte LocalPort1;
-            public byte LocalPort2;
-            public byte LocalPort3;
-            public byte LocalPort4;
-            public uint RemoteAddr;
-            public byte RemotePort1;
-            public byte RemotePort2;
-            public byte RemotePort3;
-            public byte RemotePort4;
-            public uint OwningPid;
+            // The table size cannot be queried. This runs in a 100 ms readiness poll, so it is
+            // reported as "not listening"; a persistent failure surfaces once, as the
+            // DlvNotListening timeout of DelveServer.
+            return 0;
         }
 
-        [DllImport("iphlpapi.dll", SetLastError = true)]
-        private static extern int GetExtendedTcpTable(
-            IntPtr pTcpTable, ref int pdwSize, bool bOrder, int ulAf, int tableClass, int reserved);
-
-        /// <summary>
-        /// Returns the loopback port <paramref name="processId"/> is listening
-        /// on, or 0 when it is not listening (yet) or the table cannot be read.
-        /// Only IPv4 loopback is considered - that is what dlv is told to bind.
-        /// </summary>
-        public static int FindLoopbackListenerPort(int processId)
+        var table = Marshal.AllocHGlobal(size);
+        try
         {
-            int size = 0;
-            int result = GetExtendedTcpTable(IntPtr.Zero, ref size, false, AF_INET, TCP_TABLE_OWNER_PID_LISTENER, 0);
-            if (result != ERROR_INSUFFICIENT_BUFFER && result != 0)
+            if (QueryListenerTable(table, ref size) != 0)
             {
+                // The table could not be read this round (it may have grown meanwhile); the
+                // readiness poll simply asks again
                 return 0;
             }
 
-            IntPtr table = Marshal.AllocHGlobal(size);
-            try
+            // Walk the rows for a LISTEN socket on 127.0.0.1 owned by the process
+            var rowCount = Marshal.ReadInt32(table);
+            var row = table + sizeof(int);
+            var rowSize = Marshal.SizeOf<TcpOwnerProcessRow>();
+            var loopback = (uint)IPAddress.HostToNetworkOrder(unchecked((int)0x7F000001));
+
+            for (var i = 0; i < rowCount; i++)
             {
-                if (GetExtendedTcpTable(table, ref size, false, AF_INET, TCP_TABLE_OWNER_PID_LISTENER, 0) != 0)
+                var entry = Marshal.PtrToStructure<TcpOwnerProcessRow>(row);
+                row += rowSize;
+
+                if ((entry.OwningProcessId != (uint)processId) ||
+                    (entry.State != MIB_TCP_STATE_LISTEN) ||
+                    (entry.LocalAddress != loopback))
                 {
-                    return 0;
+                    // Another process, another state, or another address
+                    continue;
                 }
 
-                int rowCount = Marshal.ReadInt32(table);
-                IntPtr row = table + sizeof(int);
-                int rowSize = Marshal.SizeOf(typeof(MIB_TCPROW_OWNER_PID));
-                uint loopback = (uint)IPAddress.HostToNetworkOrder(unchecked((int)0x7F000001));
-
-                for (int i = 0; i < rowCount; i++)
-                {
-                    var entry = (MIB_TCPROW_OWNER_PID)Marshal.PtrToStructure(row, typeof(MIB_TCPROW_OWNER_PID));
-                    row += rowSize;
-
-                    if (entry.OwningPid != (uint)processId ||
-                        entry.State != MIB_TCP_STATE_LISTEN ||
-                        entry.LocalAddr != loopback)
-                    {
-                        continue;
-                    }
-                    return (entry.LocalPort1 << 8) | entry.LocalPort2;
-                }
+                return (entry.LocalPort1 << 8) | entry.LocalPort2;
             }
-            finally
-            {
-                Marshal.FreeHGlobal(table);
-            }
-
-            return 0;
         }
+        finally
+        {
+            Marshal.FreeHGlobal(table);
+        }
+
+        return 0;
+    }
+
+    private static int QueryListenerTable(IntPtr table, ref int size)
+    {
+        const int AF_INET = 2;
+        const int TCP_TABLE_OWNER_PID_LISTENER = 3;
+
+        return GetExtendedTcpTable(
+            tcpTable: table,
+            tableSize: ref size,
+            sorted: false,
+            addressFamily: AF_INET,
+            tableClass: TCP_TABLE_OWNER_PID_LISTENER,
+            reserved: 0);
+    }
+
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    private static extern int GetExtendedTcpTable(
+        IntPtr tcpTable,
+        ref int tableSize,
+        bool sorted,
+        int addressFamily,
+        int tableClass,
+        int reserved);
+
+    /// <summary>
+    /// Managed layout of the Win32 <c>MIB_TCPROW_OWNER_PID</c> row.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct TcpOwnerProcessRow
+    {
+        public readonly uint State;
+        public readonly uint LocalAddress;
+
+        // Stored network-byte-order in the low two bytes, per MSDN.
+        public readonly byte LocalPort1;
+        public readonly byte LocalPort2;
+        public readonly byte LocalPort3;
+        public readonly byte LocalPort4;
+        public readonly uint RemoteAddress;
+        public readonly byte RemotePort1;
+        public readonly byte RemotePort2;
+        public readonly byte RemotePort3;
+        public readonly byte RemotePort4;
+        public readonly uint OwningProcessId;
     }
 }

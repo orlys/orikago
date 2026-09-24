@@ -1,16 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!--
-    dotnet-new template package. Pack-only project: it carries the template
-    content under content/ and produces no assembly. VS 2022+ surfaces the
-    installed templates in the New Project dialog automatically.
-
-    Pack (from D:/source/dotnet-project/orikago):
-      dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
-    Install:
-      dotnet new install Orikago.Templates (with ./packages mapped in nuget.config),
-      or point the install at the local feed with the nuget-source option.
-  -->
+  <!-- dotnet-new template package. Pack-only project: it carries the template -->
+  <!-- content under content/ and produces no assembly. VS 2022+ surfaces the -->
+  <!-- installed templates in the New Project dialog automatically. -->
+  <!-- -->
+  <!-- Pack (from D:/source/dotnet-project/orikago): -->
+  <!--   dotnet pack templates/Orikago.Templates.csproj -c Release -o packages -->
+  <!-- Install: -->
+  <!--   dotnet new install Orikago.Templates (with ./packages mapped in nuget.config), -->
+  <!--   or point the install at the local feed with the nuget-source option. -->
   <PropertyGroup>
     <PackageId>Orikago.Templates</PackageId>
     <PackageVersion>0.1.0-preview</PackageVersion>

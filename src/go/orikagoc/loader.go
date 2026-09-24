@@ -21,9 +21,9 @@ import (
 type diagnostic struct {
 	File     string `json:"file"`
 	Line     int    `json:"line"`
-	Col      int    `json:"col"`
+	Column   int    `json:"col"`
 	Severity string `json:"severity"`
-	Msg      string `json:"msg"`
+	Message  string `json:"msg"`
 }
 
 // loadMode is the go/packages mode used by every command that needs
@@ -45,16 +45,20 @@ const loadMode = packages.NeedTypes |
 // mirror the flags `go build` accepts so that what is type-checked is the
 // same file set that will later be emitted.
 type buildOptions struct {
-	Tags   string // comma-separated, as passed to -tags
+	// Comma-separated, as passed to -tags.
+	Tags   string
 	GOOS   string
 	GOARCH string
 }
 
 // registerBuildFlags wires -tags/-goos/-goarch onto fs.
 func (o *buildOptions) registerBuildFlags(fs *flag.FlagSet) {
-	fs.StringVar(&o.Tags, "tags", "", "comma-separated build `tags` (as in go build -tags)")
-	fs.StringVar(&o.GOOS, "goos", "", "target `operating system` (GOOS); empty means the host default")
-	fs.StringVar(&o.GOARCH, "goarch", "", "target `architecture` (GOARCH); empty means the host default")
+	fs.StringVar(&o.Tags, "tags", "",
+		"comma-separated build `tags` (as in go build -tags)")
+	fs.StringVar(&o.GOOS, "goos", "",
+		"target `operating system` (GOOS); empty means the host default")
+	fs.StringVar(&o.GOARCH, "goarch", "",
+		"target `architecture` (GOARCH); empty means the host default")
 }
 
 // appendGoflags returns the value GOFLAGS should have once flag has been
@@ -86,10 +90,10 @@ func appendGoflags(inherited, flag string) string {
 	return inherited + " " + flag
 }
 
-// env builds the environment for the `go list` subprocess go/packages
-// runs: the current environment plus the requested overrides. Later
-// entries win, so the overrides shadow any inherited value.
-func (o buildOptions) env() []string {
+// environment builds the environment for the `go list` subprocess
+// go/packages runs: the current environment plus the requested overrides.
+// Later entries win, so the overrides shadow any inherited value.
+func (o buildOptions) environment() []string {
 	env := os.Environ()
 	if o.GOOS != "" {
 		env = append(env, "GOOS="+o.GOOS)
@@ -103,12 +107,17 @@ func (o buildOptions) env() []string {
 	return env
 }
 
-// config returns the go/packages configuration for a load rooted at dir.
-func (o buildOptions) config(dir string, fset *token.FileSet, tests bool) *packages.Config {
+// configuration returns the go/packages configuration for a load rooted
+// at directory.
+func (o buildOptions) configuration(
+	directory string,
+	fset *token.FileSet,
+	tests bool,
+) *packages.Config {
 	return &packages.Config{
 		Mode:  loadMode,
-		Dir:   dir,
-		Env:   o.env(),
+		Dir:   directory,
+		Env:   o.environment(),
 		Fset:  fset,
 		Tests: tests,
 	}
@@ -121,26 +130,28 @@ func (o buildOptions) config(dir string, fset *token.FileSet, tests bool) *packa
 // build tags are all handled by the toolchain itself rather than being
 // re-implemented here.
 type loader struct {
-	dir   string // absolute directory the load is rooted at
-	opts  buildOptions
-	fset  *token.FileSet
-	lines *lineIndex
+	// Absolute directory the load is rooted at.
+	directory string
+	options   buildOptions
+	fset      *token.FileSet
+	lines     *lineIndex
 
-	diags    []diagnostic
-	diagSeen map[string]bool
+	diagnostics     []diagnostic
+	seenDiagnostics map[string]bool
 }
 
-func newLoader(dir string, opts buildOptions) (*loader, error) {
-	abs, err := filepath.Abs(dir)
+// newLoader creates a loader rooted at directory.
+func newLoader(directory string, options buildOptions) (*loader, error) {
+	abs, err := filepath.Abs(directory)
 	if err != nil {
-		return nil, fmt.Errorf("resolving %s: %w", dir, err)
+		return nil, fmt.Errorf("resolving %s: %w", directory, err)
 	}
 	return &loader{
-		dir:      abs,
-		opts:     opts,
-		fset:     token.NewFileSet(),
-		lines:    newLineIndex(),
-		diagSeen: map[string]bool{},
+		directory:       abs,
+		options:         options,
+		fset:            token.NewFileSet(),
+		lines:           newLineIndex(),
+		seenDiagnostics: map[string]bool{},
 	}, nil
 }
 
@@ -177,41 +188,48 @@ func (l *loader) resolvePath(file string) string {
 	if file == "" || filepath.IsAbs(file) {
 		return filepath.Clean(file)
 	}
-	return filepath.Join(l.dir, file)
+	return filepath.Join(l.directory, file)
 }
 
 // inModule reports whether file (already resolved) lives under the
 // loader's directory.
 func (l *loader) inModule(file string) bool {
-	rel, err := filepath.Rel(l.dir, file)
+	rel, err := filepath.Rel(l.directory, file)
 	if err != nil {
 		return false
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// addDiag records a diagnostic. line/col arrive as go/token reports them
-// (1-based, column counted in bytes) and are stored in the protocol's
-// unit: 1-based UTF-16 code units.
-func (l *loader) addDiag(file string, line, byteCol int, msg string) {
+// addDiagnostic records a diagnostic. line/byteColumn arrive as go/token
+// reports them (1-based, column counted in bytes) and are stored in the
+// protocol's unit: 1-based UTF-16 code units.
+func (l *loader) addDiagnostic(file string, line, byteColumn int, message string) {
 	file = l.resolvePath(file)
-	col := byteCol
-	if col > 0 {
-		col = l.lines.toUTF16Col(file, line, byteCol)
+	column := byteColumn
+	if column > 0 {
+		column = l.lines.toUTF16Column(file, line, byteColumn)
 	}
-	key := fmt.Sprintf("%s\x00%d\x00%d\x00%s", file, line, col, msg)
-	if l.diagSeen[key] {
+	key := fmt.Sprintf("%s\x00%d\x00%d\x00%s", file, line, column, message)
+	if l.seenDiagnostics[key] {
+		// The same diagnostic was already recorded; keep only one.
 		return
 	}
-	l.diagSeen[key] = true
-	l.diags = append(l.diags, diagnostic{File: file, Line: line, Col: col, Severity: "error", Msg: msg})
+	l.seenDiagnostics[key] = true
+	l.diagnostics = append(l.diagnostics, diagnostic{
+		File:     file,
+		Line:     line,
+		Column:   column,
+		Severity: "error",
+		Message:  message,
+	})
 }
 
-// parsePackagesError turns a packages.Error into a diagnostic. Its Pos is
-// a formatted token.Position ("file:line:col", "file:line", or empty);
-// on Windows the file part itself contains a colon, so the position is
+// parsePackagesPosition splits the Pos of a packages.Error, which is a
+// formatted token.Position ("file:line:col", "file:line", or empty); on
+// Windows the file part itself contains a colon, so the position is
 // peeled off from the right.
-func parsePackagesPos(pos string) (file string, line, col int) {
+func parsePackagesPosition(pos string) (file string, line, column int) {
 	pos = strings.TrimSpace(pos)
 	if pos == "" || pos == "-" {
 		return "", 0, 0
@@ -228,8 +246,8 @@ func parsePackagesPos(pos string) (file string, line, col int) {
 	rest := file[:i]
 	j := strings.LastIndex(rest, ":")
 	if j >= 0 {
-		if m, err2 := strconv.Atoi(rest[j+1:]); err2 == nil {
-			return rest[:j], m, n
+		if columnNumber, columnErr := strconv.Atoi(rest[j+1:]); columnErr == nil {
+			return rest[:j], columnNumber, n
 		}
 	}
 	// Only one numeric component: it was the line, no column.
@@ -241,7 +259,7 @@ func parsePackagesPos(pos string) (file string, line, col int) {
 // position. A returned error is an infrastructure failure (the go
 // toolchain could not be run at all); source problems are diagnostics.
 func (l *loader) checkModule() ([]diagnostic, error) {
-	cfg := l.opts.config(l.dir, l.fset, false)
+	cfg := l.options.configuration(l.directory, l.fset, false)
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
 		// Infrastructure error only when the toolchain could not run at
@@ -251,17 +269,18 @@ func (l *loader) checkModule() ([]diagnostic, error) {
 		// contract says is data: report it as a diagnostic against go.mod
 		// and exit 0, instead of blowing up the C# host mid-edit.
 		var execErr *exec.Error
-		if _, statErr := os.Stat(l.dir); statErr != nil || errors.As(err, &execErr) {
-			return nil, fmt.Errorf("loading packages in %s: %w", l.dir, err)
+		if _, statErr := os.Stat(l.directory); statErr != nil || errors.As(err, &execErr) {
+			return nil, fmt.Errorf("loading packages in %s: %w", l.directory, err)
 		}
 		line := 1
-		if m := goModLineRe.FindStringSubmatch(err.Error()); m != nil {
+		if m := goModLinePattern.FindStringSubmatch(err.Error()); m != nil {
 			if n, convErr := strconv.Atoi(m[1]); convErr == nil {
 				line = n
 			}
 		}
-		l.addDiag(filepath.Join(l.dir, "go.mod"), line, 0, strings.TrimSpace(err.Error()))
-		return l.sortedDiags(), nil
+		goMod := filepath.Join(l.directory, "go.mod")
+		l.addDiagnostic(goMod, line, 0, strings.TrimSpace(err.Error()))
+		return l.sortedDiagnostics(), nil
 	}
 
 	// Top-level packages report all their errors. Dependency packages are
@@ -277,40 +296,44 @@ func (l *loader) checkModule() ([]diagnostic, error) {
 	}
 	packages.Visit(pkgs, nil, func(pkg *packages.Package) {
 		for _, e := range pkg.Errors {
-			file, line, col := parsePackagesPos(e.Pos)
+			file, line, column := parsePackagesPosition(e.Pos)
 			if !topLevel[pkg] {
 				if file == "" || !l.inModule(l.resolvePath(file)) {
+					// A dependency error outside this module: not actionable here.
 					continue
 				}
 			}
-			l.addDiag(file, line, col, e.Msg)
+			l.addDiagnostic(file, line, column, e.Msg)
 		}
 	})
 
-	return l.sortedDiags(), nil
+	return l.sortedDiagnostics(), nil
 }
 
-// goModLineRe pulls the line number out of `go list`'s "go.mod:5: unknown
-// directive" style messages so the diagnostic lands on the offending line.
-var goModLineRe = regexp.MustCompile(`go\.mod:(\d+)`)
+// goModLinePattern pulls the line number out of `go list`'s "go.mod:5:
+// unknown directive" style messages so the diagnostic lands on the
+// offending line.
+var goModLinePattern = regexp.MustCompile(`go\.mod:(\d+)`)
 
-// sortedDiags returns the accumulated diagnostics in stable position order.
-func (l *loader) sortedDiags() []diagnostic {
-	sort.SliceStable(l.diags, func(i, j int) bool {
-		a, b := l.diags[i], l.diags[j]
+// sortedDiagnostics returns the accumulated diagnostics in stable
+// position order.
+func (l *loader) sortedDiagnostics() []diagnostic {
+	sort.SliceStable(l.diagnostics, func(i, j int) bool {
+		a, b := l.diagnostics[i], l.diagnostics[j]
 		if a.File != b.File {
 			return a.File < b.File
 		}
 		if a.Line != b.Line {
 			return a.Line < b.Line
 		}
-		if a.Col != b.Col {
-			return a.Col < b.Col
+		if a.Column != b.Column {
+			return a.Column < b.Column
 		}
-		return a.Msg < b.Msg
+		return a.Message < b.Message
 	})
-	if l.diags == nil {
-		l.diags = []diagnostic{}
+	if l.diagnostics == nil {
+		// Nothing was reported: marshal an empty array, not null.
+		l.diagnostics = []diagnostic{}
 	}
-	return l.diags
+	return l.diagnostics
 }

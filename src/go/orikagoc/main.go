@@ -37,6 +37,9 @@ import (
 	"os"
 )
 
+// main runs one subcommand and exits.
+//
+// Rule 090 exception: one-shot CLI invocation, not a long-running service.
 func main() {
 	os.Exit(run(os.Args[1:]))
 }
@@ -57,11 +60,11 @@ func run(args []string) (code int) {
 	}
 	switch args[0] {
 	case "parse":
-		return cmdParse(args[1:])
+		return parseCommand(args[1:])
 	case "check":
-		return cmdCheck(args[1:])
+		return checkCommand(args[1:])
 	case "symbol":
-		return cmdSymbol(args[1:])
+		return symbolCommand(args[1:])
 	case "help", "-h", "-help", "--help":
 		usage(os.Stdout)
 		return 0
@@ -98,20 +101,21 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, usageText)
 }
 
-// infra reports an infrastructure (non-source) error and yields exit code 1.
-func infra(err error) int {
+// infrastructureFailure reports an infrastructure (non-source) error and
+// yields exit code 1.
+func infrastructureFailure(err error) int {
 	fmt.Fprintln(os.Stderr, "orikagoc: "+err.Error())
 	return 1
 }
 
 // emit writes v to stdout as JSON: one line by default, indented with pretty.
 func emit(v any, pretty bool) int {
-	enc := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(os.Stdout)
 	if pretty {
-		enc.SetIndent("", "  ")
+		encoder.SetIndent("", "  ")
 	}
-	if err := enc.Encode(v); err != nil {
-		return infra(err)
+	if err := encoder.Encode(v); err != nil {
+		return infrastructureFailure(err)
 	}
 	return 0
 }
@@ -122,12 +126,12 @@ func newFlagSet(name string) *flag.FlagSet {
 	return fs
 }
 
-// parseArgs parses fs against args, allowing flags to appear both before
-// and after up to npos positional arguments (so "parse file.go -pretty"
-// and "parse -pretty file.go" both work). It returns the positional
-// arguments and -1, or a non-negative exit code when flag parsing failed
-// or help was requested.
-func parseArgs(fs *flag.FlagSet, args []string, npos int) ([]string, int) {
+// parseArguments parses fs against args, allowing flags to appear both
+// before and after up to positionalCount positional arguments (so
+// "parse file.go -pretty" and "parse -pretty file.go" both work). It
+// returns the positional arguments and -1, or a non-negative exit code
+// when flag parsing failed or help was requested.
+func parseArguments(fs *flag.FlagSet, args []string, positionalCount int) ([]string, int) {
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return nil, 0
@@ -135,15 +139,15 @@ func parseArgs(fs *flag.FlagSet, args []string, npos int) ([]string, int) {
 		return nil, 2
 	}
 	rest := fs.Args()
-	if len(rest) <= npos {
+	if len(rest) <= positionalCount {
 		return rest, -1
 	}
-	pos := append([]string(nil), rest[:npos]...)
-	if err := fs.Parse(rest[npos:]); err != nil {
+	positional := append([]string(nil), rest[:positionalCount]...)
+	if err := fs.Parse(rest[positionalCount:]); err != nil {
 		if err == flag.ErrHelp {
 			return nil, 0
 		}
 		return nil, 2
 	}
-	return append(pos, fs.Args()...), -1
+	return append(positional, fs.Args()...), -1
 }

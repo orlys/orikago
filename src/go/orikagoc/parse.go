@@ -17,7 +17,7 @@ import (
 // byte offset from the start of the file.
 type position struct {
 	Line   int `json:"line"`
-	Col    int `json:"col"`
+	Column int `json:"col"`
 	Offset int `json:"offset"`
 }
 
@@ -30,10 +30,11 @@ type jsonNode struct {
 	Children []*jsonNode `json:"children"`
 }
 
+// parseError is one syntax error reported by the parse command.
 type parseError struct {
-	Line int    `json:"line"`
-	Col  int    `json:"col"`
-	Msg  string `json:"msg"`
+	Line    int    `json:"line"`
+	Column  int    `json:"col"`
+	Message string `json:"msg"`
 }
 
 // parseResult is the wrapper object printed by the parse command.
@@ -42,15 +43,18 @@ type parseResult struct {
 	Errors []parseError `json:"errors"`
 }
 
-// cmdParse implements "orikagoc parse". Input is one of: a file path, "-"
+// parseCommand implements "orikagoc parse". Input is one of: a file path, "-"
 // for stdin, or --expr "<src>" for a single expression. Parse errors are
 // data: they land in the "errors" array and the exit code stays 0.
-func cmdParse(args []string) int {
+func parseCommand(args []string) int {
+	// Parse the flags; --expr is detected by presence, not by value.
 	fs := newFlagSet("parse")
-	expr := fs.String("expr", "", "parse `source` as a single expression instead of a file")
-	pathFlag := fs.String("path", "", "file `name` reported in positions for stdin or --expr input")
+	expr := fs.String("expr", "",
+		"parse `source` as a single expression instead of a file")
+	pathFlag := fs.String("path", "",
+		"file `name` reported in positions for stdin or --expr input")
 	pretty := fs.Bool("pretty", false, "indent the JSON output")
-	rest, code := parseArgs(fs, args, 1)
+	rest, code := parseArguments(fs, args, 1)
 	if code >= 0 {
 		return code
 	}
@@ -61,6 +65,7 @@ func cmdParse(args []string) int {
 		}
 	})
 
+	// Parse the selected input: an expression, stdin, or a file.
 	fset := token.NewFileSet()
 	mode := parser.ParseComments | parser.AllErrors | parser.SkipObjectResolution
 	// Positions leave the sidecar with UTF-16 columns; the index holds the
@@ -89,9 +94,9 @@ func cmdParse(args []string) int {
 			root = e
 		}
 	case len(rest) == 1 && rest[0] == "-":
-		src, rerr := io.ReadAll(os.Stdin)
-		if rerr != nil {
-			return infra(rerr)
+		src, readErr := io.ReadAll(os.Stdin)
+		if readErr != nil {
+			return infrastructureFailure(readErr)
 		}
 		name := *pathFlag
 		if name == "" {
@@ -110,35 +115,38 @@ func cmdParse(args []string) int {
 			root = f
 		}
 	default:
-		fmt.Fprintln(os.Stderr, `usage: orikagoc parse <file.go> | orikagoc parse - | orikagoc parse --expr "<src>"`)
+		fmt.Fprintln(os.Stderr,
+			`usage: orikagoc parse <file.go> | orikagoc parse - | orikagoc parse --expr "<src>"`)
 		return 2
 	}
 
-	res := parseResult{Errors: []parseError{}}
+	// Syntax errors become data; anything else is an infrastructure failure.
+	result := parseResult{Errors: []parseError{}}
 	if err != nil {
 		list, ok := err.(scanner.ErrorList)
 		if !ok {
 			// Not a syntax problem: unreadable file and the like.
-			return infra(err)
+			return infrastructureFailure(err)
 		}
 		for _, e := range list {
-			res.Errors = append(res.Errors, parseError{
-				Line: e.Pos.Line,
-				Col:  lines.toUTF16Col(e.Pos.Filename, e.Pos.Line, e.Pos.Column),
-				Msg:  e.Msg,
+			result.Errors = append(result.Errors, parseError{
+				Line:    e.Pos.Line,
+				Column:  lines.toUTF16Column(e.Pos.Filename, e.Pos.Line, e.Pos.Column),
+				Message: e.Msg,
 			})
 		}
 	}
 	if root != nil {
-		res.AST = buildNode(fset, lines, root)
+		// A tree was produced (possibly partial): convert it for the output.
+		result.AST = buildNode(fset, lines, root)
 	}
-	return emit(res, *pretty)
+	return emit(result, *pretty)
 }
 
 // buildNode converts an ast.Node and, recursively, its children into the
 // JSON shape of the protocol.
 func buildNode(fset *token.FileSet, lines *lineIndex, n ast.Node) *jsonNode {
-	jn := &jsonNode{
+	node := &jsonNode{
 		Kind:     nodeKind(n),
 		Pos:      toPosition(fset, lines, n.Pos()),
 		End:      toPosition(fset, lines, n.End()),
@@ -146,21 +154,21 @@ func buildNode(fset *token.FileSet, lines *lineIndex, n ast.Node) *jsonNode {
 	}
 	switch v := n.(type) {
 	case *ast.Ident:
-		jn.Text = v.Name
+		node.Text = v.Name
 	case *ast.BasicLit:
-		jn.Text = v.Value
+		node.Text = v.Value
 	}
 	for _, c := range directChildren(n) {
-		jn.Children = append(jn.Children, buildNode(fset, lines, c))
+		node.Children = append(node.Children, buildNode(fset, lines, c))
 	}
-	return jn
+	return node
 }
 
 func toPosition(fset *token.FileSet, lines *lineIndex, p token.Pos) position {
 	pos := fset.Position(p)
 	return position{
 		Line:   pos.Line,
-		Col:    lines.toUTF16Col(pos.Filename, pos.Line, pos.Column),
+		Column: lines.toUTF16Column(pos.Filename, pos.Line, pos.Column),
 		Offset: pos.Offset,
 	}
 }
@@ -187,11 +195,13 @@ func directChildren(n ast.Node) []ast.Node {
 			return false
 		}
 		if self {
+			// Descend into n itself.
 			self = false
-			return true // descend into n itself
+			return true
 		}
+		// Direct child recorded; recursion happens in buildNode.
 		out = append(out, c)
-		return false // direct child recorded; recursion happens in buildNode
+		return false
 	})
 	return out
 }

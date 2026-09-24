@@ -17,19 +17,26 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- Every test file uses xUnit; declared once here instead of per file (rules/066). -->
+  <!-- Kept here, not in a repo-root Directory.Build.props: that file would also be -->
+  <!-- imported by the old-style LanguageService csproj, the .goproj files and templates. -->
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\csharp\Orikago.CodeAnalysis\Orikago.CodeAnalysis.csproj" />
-    <!-- Build-order dependency only: the sidecar is a Go executable, not an
-         assembly reference. It is copied next to the test output below so
-         OrikagoToolResolver finds it beside Orikago.CodeAnalysis.dll. -->
+    <!-- Build-order dependency only: the sidecar is a Go executable, not an -->
+    <!-- assembly reference. It is copied next to the test output below so -->
+    <!-- OrikagoToolResolver finds it beside Orikago.CodeAnalysis.dll. -->
     <ProjectReference Include="..\..\..\src\go\orikagoc\orikagoc.goproj"
                       ReferenceOutputAssembly="false"
                       Private="false" />
   </ItemGroup>
 
-  <!-- The tests resolve the orikagoc sidecar next to the test assembly
-       (OrikagoToolResolver step 3). GetTargetPath on the .goproj returns the
-       real Go binary (see Orikago.Sdk Sdk.targets). -->
+  <!-- The tests resolve the orikagoc sidecar next to the test assembly -->
+  <!-- (OrikagoToolResolver step 3). GetTargetPath on the .goproj returns the -->
+  <!-- real Go binary (see Orikago.Sdk Sdk.targets). -->
   <Target Name="CopyOrikagocSidecar" AfterTargets="Build">
     <MSBuild Projects="..\..\..\src\go\orikagoc\orikagoc.goproj"
              Targets="GetTargetPath"
@@ -42,4 +49,3 @@
   </Target>
 
 </Project>
-

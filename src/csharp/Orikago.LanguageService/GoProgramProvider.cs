@@ -1,250 +1,240 @@
+namespace Orikago.LanguageService;
+
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Debugger.Interop;
+
+using Orikago.LanguageService.Definitions;
+
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.VisualStudio.Debugger.Interop;
 
-namespace Orikago.LanguageService
+/// <summary>
+/// Reports "this process contains a program my engine can debug" to the attach pipeline.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Registered as the engine's <c>ProgramProvider</c> in goproj.pkgdef.
+/// </para>
+/// <para>
+/// This is the piece whose absence made every attach fail with
+/// HRESULT <c>0x8971001E</c> long before the adapter launcher was ever consulted:
+/// with no program provider, the shell finds no program belonging to this
+/// engine inside the target process and gives up. Modelled on the
+/// JavaScript/TypeScript debug adapter's provider, which is the one
+/// in-box example of a Debug Adapter Host engine doing LOCAL attach.
+/// </para>
+/// </remarks>
+[ComVisible(true)]
+[Guid(ClsidString)]
+public sealed class GoProgramProvider : IDebugProgramProvider2
 {
     /// <summary>
-    /// Reports "this process contains a program my engine can debug" to the
-    /// attach pipeline. Registered as the engine's "ProgramProvider" in
-    /// goproj.pkgdef.
-    /// <para>
-    /// This is the piece whose absence made every attach fail with
-    /// HRESULT 0x8971001E long before the adapter launcher was ever consulted:
-    /// with no program provider, the shell finds no program belonging to this
-    /// engine inside the target process and gives up. Modelled on the
-    /// JavaScript/TypeScript debug adapter's provider, which is the one
-    /// in-box example of a Debug Adapter Host engine doing LOCAL attach.
-    /// </para>
+    /// The COM class ID of this provider.
     /// </summary>
-    [ComVisible(true)]
-    [Guid(ClsidString)]
-    public sealed class GoProgramProvider : IDebugProgramProvider2
+    /// <remarks>
+    /// Must match both the engine's <c>ProgramProvider</c> value and the <c>CLSID</c>
+    /// registration of this class in goproj.pkgdef.
+    /// </remarks>
+    public const string ClsidString = "3E8C1A47-9D26-4B85-BF03-71A5E9C4D682";
+
+    int IDebugProgramProvider2.GetProviderProcessData(
+        enum_PROVIDER_FLAGS flags,
+        IDebugDefaultPort2 port,
+        AD_PROCESS_ID processId,
+        CONST_GUID_ARRAY engineFilter,
+        PROVIDER_PROCESS_DATA[] processArray)
     {
-        /// <summary>Must match the CLSID + "ProgramProvider" entries in goproj.pkgdef.</summary>
-        public const string ClsidString = "3E8C1A47-9D26-4B85-BF03-71A5E9C4D682";
+        // Values of enum_PROVIDER_FLAGS.PFLAG_GET_PROGRAM_NODES and
+        // enum_PROVIDER_FIELDS.PFIELD_PROGRAM_NODES
+        const uint PFLAG_GET_PROGRAM_NODES = 0x10;
+        const uint PFIELD_PROGRAM_NODES = 0x1;
 
-        private const uint ProcessQueryLimitedInformation = 0x1000;
-        private const int EFail = unchecked((int)0x80004005);
-
-        /// <summary>enum_PROVIDER_FLAGS.PFLAG_GET_PROGRAM_NODES</summary>
-        private const uint FlagGetProgramNodes = 0x10;
-
-        /// <summary>enum_PROVIDER_FIELDS.PFIELD_PROGRAM_NODES</summary>
-        private const uint FieldProgramNodes = 0x1;
-
-        int IDebugProgramProvider2.GetProviderProcessData(
-            enum_PROVIDER_FLAGS flags,
-            IDebugDefaultPort2 port,
-            AD_PROCESS_ID processId,
-            CONST_GUID_ARRAY engineFilter,
-            PROVIDER_PROCESS_DATA[] processArray)
+        if (processArray is not { Length: > 0 })
         {
-            if (processArray == null || processArray.Length == 0)
-            {
-                return EFail;
-            }
-            processArray[0] = default(PROVIDER_PROCESS_DATA);
-
-            if (((uint)flags & FlagGetProgramNodes) == 0)
-            {
-                return 1; // S_FALSE: nothing to contribute for this query.
-            }
-
-            int pid = (int)processId.dwProcessId;
-            string exePath = TryGetProcessImagePath(pid);
-            if (exePath == null || !IsGoBinary(exePath))
-            {
-                return 1;
-            }
-
-            var node = (IDebugProgramNode2)new GoProgramNode(pid, GoDebugLaunchProvider.DelveEngineGuid, "Go Debugger (Delve)");
-            IntPtr[] nodes = { Marshal.GetComInterfaceForObject(node, typeof(IDebugProgramNode2)) };
-            IntPtr members = Marshal.AllocCoTaskMem(IntPtr.Size * nodes.Length);
-            Marshal.Copy(nodes, 0, members, nodes.Length);
-
-            processArray[0].Fields = (enum_PROVIDER_FIELDS)FieldProgramNodes;
-            processArray[0].ProgramNodes.Members = members;
-            processArray[0].ProgramNodes.dwCount = (uint)nodes.Length;
-            return 0;
+            // The shell passed no slot to fill: a contract violation on the caller's side
+            ExtensionLog.Error("GetProviderProcessData was called without a result slot.");
+            return VSConstants.E_FAIL;
         }
 
-        int IDebugProgramProvider2.GetProviderProgramNode(
-            enum_PROVIDER_FLAGS flags,
-            IDebugDefaultPort2 port,
-            AD_PROCESS_ID processId,
-            ref Guid guidEngine,
-            ulong programId,
-            out IDebugProgramNode2 programNode)
+        processArray[0] = default;
+
+        if (((uint)flags & PFLAG_GET_PROGRAM_NODES) == 0)
         {
-            programNode = null;
-            return EFail;
+            // Not a program-node query: nothing to contribute
+            return VSConstants.S_FALSE;
         }
 
-        int IDebugProgramProvider2.WatchForProviderEvents(
-            enum_PROVIDER_FLAGS flags,
-            IDebugDefaultPort2 port,
-            AD_PROCESS_ID processId,
-            CONST_GUID_ARRAY engineFilter,
-            ref Guid guidLaunchingEngine,
-            IDebugPortNotify2 ad7EventCallback)
+        var pid = (int)processId.dwProcessId;
+        if ((TryGetProcessImagePath(pid) is not { } executablePath) ||
+            !IsGoBinary(executablePath))
         {
-            return 0;
+            // The image cannot be read or is not a Go binary: no Go program lives here
+            return VSConstants.S_FALSE;
         }
 
-        int IDebugProgramProvider2.SetLocale(ushort wLangID) => 0;
+        // Hand the shell one program node for this process, in a CoTaskMem array it frees
+        var node = (IDebugProgramNode2)new GoProgramNode(
+            processId: pid,
+            engineGuid: new Guid(DelveEngine.GuidString),
+            engineName: DelveEngine.Name);
+        IntPtr[] nodes = [Marshal.GetComInterfaceForObject(node, typeof(IDebugProgramNode2))];
+        var members = Marshal.AllocCoTaskMem(IntPtr.Size * nodes.Length);
+        Marshal.Copy(nodes, 0, members, nodes.Length);
 
-        /// <summary>
-        /// A Go binary carries the runtime build info magic that `go version
-        /// &lt;exe&gt;` reads. Matching on it keeps "Go Debugger (Delve)" out of the
-        /// code-type list for every unrelated process in the attach dialog.
-        /// ponytail: scans the file once per query; the attach dialog asks for
-        /// a handful of processes at a time.
-        /// </summary>
-        private static bool IsGoBinary(string exePath)
-        {
-            // "\xff Go buildinf:" - the header the Go linker writes into every
-            // binary (runtime/debug.ReadBuildInfo / cmd/go's version command).
-            byte[] magic = { 0xFF, 0x20, 0x47, 0x6F, 0x20, 0x62, 0x75, 0x69, 0x6C, 0x64, 0x69, 0x6E, 0x66, 0x3A };
-            try
-            {
-                using (var stream = new FileStream(exePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-                {
-                    var window = new byte[64 * 1024];
-                    int carry = magic.Length - 1;
-                    int offset = 0;
-                    while (true)
-                    {
-                        int read = stream.Read(window, offset, window.Length - offset);
-                        if (read <= 0)
-                        {
-                            return false;
-                        }
-                        int available = offset + read;
-                        for (int i = 0; i + magic.Length <= available; i++)
-                        {
-                            bool hit = true;
-                            for (int j = 0; j < magic.Length; j++)
-                            {
-                                if (window[i + j] != magic[j]) { hit = false; break; }
-                            }
-                            if (hit)
-                            {
-                                return true;
-                            }
-                        }
-                        // Keep the tail so a match spanning two windows is not missed.
-                        Buffer.BlockCopy(window, available - carry, window, 0, carry);
-                        offset = carry;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
+        processArray[0].Fields = (enum_PROVIDER_FIELDS)PFIELD_PROGRAM_NODES;
+        processArray[0].ProgramNodes.Members = members;
+        processArray[0].ProgramNodes.dwCount = (uint)nodes.Length;
+        return VSConstants.S_OK;
+    }
 
-        private static string TryGetProcessImagePath(int pid)
-        {
-            IntPtr handle = NativeMethods.OpenProcess(ProcessQueryLimitedInformation, false, (uint)pid);
-            if (handle == IntPtr.Zero)
-            {
-                return null;
-            }
-            try
-            {
-                var builder = new StringBuilder(4096);
-                int size = builder.Capacity;
-                return NativeMethods.QueryFullProcessImageName(handle, 0, builder, ref size)
-                    ? builder.ToString(0, size)
-                    : null;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-            finally
-            {
-                NativeMethods.CloseHandle(handle);
-            }
-        }
+    int IDebugProgramProvider2.GetProviderProgramNode(
+        enum_PROVIDER_FLAGS flags,
+        IDebugDefaultPort2 port,
+        AD_PROCESS_ID processId,
+        ref Guid engineGuid,
+        ulong programId,
+        out IDebugProgramNode2? programNode)
+    {
+        programNode = null;
+        return VSConstants.E_FAIL;
+    }
 
-        private static class NativeMethods
-        {
-            [DllImport("kernel32.dll", SetLastError = true)]
-            public static extern IntPtr OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
+    int IDebugProgramProvider2.WatchForProviderEvents(
+        enum_PROVIDER_FLAGS flags,
+        IDebugDefaultPort2 port,
+        AD_PROCESS_ID processId,
+        CONST_GUID_ARRAY engineFilter,
+        ref Guid launchingEngineGuid,
+        IDebugPortNotify2 eventCallback)
+    {
+        return VSConstants.S_OK;
+    }
 
-            [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            public static extern bool QueryFullProcessImageName(IntPtr hProcess, uint dwFlags, StringBuilder lpExeName, ref int lpdwSize);
-
-            [DllImport("kernel32.dll", SetLastError = true)]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            public static extern bool CloseHandle(IntPtr hObject);
-        }
+    int IDebugProgramProvider2.SetLocale(ushort languageId)
+    {
+        return VSConstants.S_OK;
     }
 
     /// <summary>
-    /// The single program the provider above reports for a Go process. Only
-    /// the engine identity and the host PID are meaningful; the _V7 members
-    /// are legacy and stay unimplemented, as in the in-box providers.
+    /// A Go binary carries the build info magic that <c>go version &lt;exe&gt;</c> reads.
     /// </summary>
-    internal sealed class GoProgramNode : IDebugProgramNode2
+    /// <remarks>
+    /// Matching on it keeps "Go Debugger (Delve)" out of the code-type list for every
+    /// unrelated process in the attach dialog.
+    /// ponytail: scans the file once per query; the attach dialog asks for a handful of
+    /// processes at a time.
+    /// </remarks>
+    private static bool IsGoBinary(string executablePath)
     {
-        private const int EFail = unchecked((int)0x80004005);
-
-        private readonly int _processId;
-        private readonly Guid _engineGuid;
-        private readonly string _engineName;
-
-        public GoProgramNode(int processId, Guid engineGuid, string engineName)
+        // "\xff Go buildinf:" - the header the Go linker writes into every
+        // binary (runtime/debug.ReadBuildInfo / cmd/go's version command).
+        byte[] magic = [0xFF, .. Encoding.ASCII.GetBytes(" Go buildinf:")];
+        try
         {
-            _processId = processId;
-            _engineGuid = engineGuid;
-            _engineName = engineName;
-        }
+            using var stream = new FileStream(
+                path: executablePath,
+                mode: FileMode.Open,
+                access: FileAccess.Read,
+                share: FileShare.ReadWrite | FileShare.Delete);
 
-        int IDebugProgramNode2.GetEngineInfo(out string engineName, out Guid engineGuid)
-        {
-            engineName = _engineName;
-            engineGuid = _engineGuid;
-            return 0;
-        }
-
-        int IDebugProgramNode2.GetHostPid(AD_PROCESS_ID[] pHostProcessId)
-        {
-            if (pHostProcessId == null || pHostProcessId.Length == 0)
+            // Scan the file window by window for the magic
+            var window = new byte[64 * 1024];
+            var carry = magic.Length - 1;
+            var offset = default(int);
+            while (true)
             {
-                return EFail;
+                var read = stream.Read(window, offset, window.Length - offset);
+                if (read <= 0)
+                {
+                    // End of file without the magic: not a Go binary
+                    return false;
+                }
+
+                var available = offset + read;
+                for (var i = 0; (i + magic.Length) <= available; i++)
+                {
+                    var hit = true;
+                    for (var j = 0; j < magic.Length; j++)
+                    {
+                        if (window[i + j] != magic[j])
+                        {
+                            hit = false;
+                            break;
+                        }
+                    }
+
+                    if (hit)
+                    {
+                        return true;
+                    }
+                }
+
+                // Keep the tail so a match spanning two windows is not missed.
+                Buffer.BlockCopy(window, available - carry, window, 0, carry);
+                offset = carry;
             }
-            pHostProcessId[0].ProcessIdType = 0u; // AD_PROCESS_ID_SYSTEM
-            pHostProcessId[0].dwProcessId = (uint)_processId;
-            return 0;
         }
-
-        int IDebugProgramNode2.GetHostName(enum_GETHOSTNAME_TYPE dwHostNameType, out string processName)
+        catch (Exception)
         {
-            processName = null;
-            return EFail;
+            // The image cannot be read (locked, access denied, vanished): treat it as not Go.
+            // The attach dialog queries every process, so this is routine, not a failure.
+            return false;
         }
+    }
 
-        int IDebugProgramNode2.GetProgramName(out string programName)
+    private static string? TryGetProcessImagePath(int pid)
+    {
+        const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        var handle = NativeMethods.OpenProcess(
+            desiredAccess: PROCESS_QUERY_LIMITED_INFORMATION,
+            inheritHandle: false,
+            processId: (uint)pid);
+        if (handle == IntPtr.Zero)
         {
-            programName = null;
-            return EFail;
+            // Protected, elevated or already gone: routine for the attach dialog's process list
+            return null;
         }
 
-        int IDebugProgramNode2.Attach_V7(IDebugProgram2 pMDMProgram, IDebugEventCallback2 pCallback, uint dwReason) => EFail;
-
-        int IDebugProgramNode2.DetachDebugger_V7() => EFail;
-
-        int IDebugProgramNode2.GetHostMachineName_V7(out string hostMachineName)
+        try
         {
-            hostMachineName = null;
-            return EFail;
+            var builder = new StringBuilder(4096);
+            var size = builder.Capacity;
+            return NativeMethods.QueryFullProcessImageName(handle, 0, builder, ref size)
+                ? builder.ToString(0, size)
+                : null;
         }
+        catch (Exception)
+        {
+            // The image name cannot be queried: treat the process as unreadable
+            return null;
+        }
+        finally
+        {
+            NativeMethods.CloseHandle(handle);
+        }
+    }
+
+    private static class NativeMethods
+    {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(
+            uint desiredAccess,
+            [MarshalAs(UnmanagedType.Bool)] bool inheritHandle,
+            uint processId);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool QueryFullProcessImageName(
+            IntPtr process,
+            uint flags,
+            StringBuilder executableName,
+            ref int size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr handle);
     }
 }

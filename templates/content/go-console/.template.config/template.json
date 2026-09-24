@@ -13,7 +13,7 @@
   "sourceName": "OrikagoApp",
   "preferNameDirectory": true,
   "forms": {
-    "lc": { "identifier": "lowerCase" },
+    "lowercase": { "identifier": "lowerCase" },
     "goModuleChars": {
       "identifier": "replace",
       "pattern": "[^A-Za-z0-9._~-]",
@@ -31,7 +31,7 @@
     },
     "goModuleSafe": {
       "identifier": "chain",
-      "steps": [ "lc", "goModuleChars", "goModuleCollapse", "goModuleTrimDots" ]
+      "steps": [ "lowercase", "goModuleChars", "goModuleCollapse", "goModuleTrimDots" ]
     }
   },
   "symbols": {
@@ -50,13 +50,34 @@
       "replaces": "GO_LANG_VERSION",
       "displayName": "Go language version",
       "choices": [
-        { "choice": "1.13", "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)" },
-        { "choice": "1.18", "description": "Go 1.18 (introduces generics)" },
-        { "choice": "1.21", "description": "Go 1.21 (default; matches the local toolchain)" },
-        { "choice": "1.22", "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)" },
-        { "choice": "1.23", "description": "Go 1.23" },
-        { "choice": "1.24", "description": "Go 1.24" },
-        { "choice": "1.25", "description": "Go 1.25" }
+        {
+          "choice": "1.13",
+          "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)"
+        },
+        {
+          "choice": "1.18",
+          "description": "Go 1.18 (introduces generics)"
+        },
+        {
+          "choice": "1.21",
+          "description": "Go 1.21 (default; matches the local toolchain)"
+        },
+        {
+          "choice": "1.22",
+          "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)"
+        },
+        {
+          "choice": "1.23",
+          "description": "Go 1.23"
+        },
+        {
+          "choice": "1.24",
+          "description": "Go 1.24"
+        },
+        {
+          "choice": "1.25",
+          "description": "Go 1.25"
+        }
       ]
     }
   },

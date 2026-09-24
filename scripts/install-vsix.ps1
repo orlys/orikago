@@ -1,18 +1,17 @@
 #Requires -Version 7
-<#
-.SYNOPSIS
-    Builds and installs the Orikago language service extension into Visual Studio.
 
-.DESCRIPTION
-    VSIXInstaller silently does nothing when the installed extension carries the
-    same Identity version as the package being installed - it reports success and
-    leaves the old DLL in place, which looks exactly like a successful update.
-    Uninstalling first makes the install unconditional, so the extension version
-    never has to be bumped just to redeploy a rebuild.
-
-    Visual Studio must be closed: VSIXInstaller exits 2004 (BlockingProcesses)
-    while any devenv is running.
-#>
+# .SYNOPSIS
+#     Builds and installs the Orikago language service extension into Visual Studio.
+#
+# .DESCRIPTION
+#     VSIXInstaller silently does nothing when the installed extension carries the
+#     same Identity version as the package being installed - it reports success and
+#     leaves the old DLL in place, which looks exactly like a successful update.
+#     Uninstalling first makes the install unconditional, so the extension version
+#     never has to be bumped just to redeploy a rebuild.
+#
+#     Visual Studio must be closed: VSIXInstaller exits 2004 (BlockingProcesses)
+#     while any devenv is running.
 [CmdletBinding()]
 param(
     # Skip MSBuild and install whatever is already in bin/Release.
@@ -22,29 +21,39 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # The scripts live in scripts/, so the repository root is one level up.
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/Orikago.LanguageService.csproj'
-$vsix = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/bin/Release/Orikago.LanguageService.vsix'
+$repositoryRoot = Split-Path -Parent $PSScriptRoot
+$languageServiceDirectory = Join-Path $repositoryRoot 'src/csharp/Orikago.LanguageService'
+$project = Join-Path $languageServiceDirectory 'Orikago.LanguageService.csproj'
+$vsix = Join-Path $languageServiceDirectory 'bin/Release/Orikago.LanguageService.vsix'
 $extensionId = 'Orikago.LanguageService'
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-# The extension-development workload is only needed to BUILD the VSIX (MSBuild
-# with the VSSDK targets). -NoBuild just runs VSIXInstaller.exe, which ships
-# with every VS edition, so requiring the workload there would block plain
-# consumers of a prebuilt package.
 if ($NoBuild) {
+    # -NoBuild just runs VSIXInstaller.exe, which ships with every VS edition, so
+    # requiring the extension-development workload here would block plain
+    # consumers of a prebuilt package.
     $vsPath = & $vswhere -latest -products '*' -property installationPath
     if (-not $vsPath) { throw "No Visual Studio installation was found." }
 } else {
-    $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Workload.VisualStudioExtension -property installationPath
+    # Building the VSIX needs the extension-development workload (MSBuild with
+    # the VSSDK targets).
+    $vswhereArguments = @(
+        '-latest'
+        '-products', '*'
+        '-requires', 'Microsoft.VisualStudio.Workload.VisualStudioExtension'
+        '-property', 'installationPath'
+    )
+    $vsPath = & $vswhere @vswhereArguments
     if (-not $vsPath) {
-        throw "No Visual Studio installation with the extension development workload was found. To install a prebuilt VSIX without it, use -NoBuild."
+        throw 'No Visual Studio installation with the extension development workload was found. ' +
+            'To install a prebuilt VSIX without it, use -NoBuild.'
     }
 }
 
 $devenv = Get-Process devenv -ErrorAction SilentlyContinue
 if ($devenv) {
-    throw "Close Visual Studio first ($($devenv.Count) instance(s) running); VSIXInstaller cannot write to a live installation."
+    throw "Close Visual Studio first ($($devenv.Count) instance(s) running); " +
+        'VSIXInstaller cannot write to a live installation.'
 }
 
 if (-not $NoBuild) {
@@ -58,7 +67,8 @@ if (-not (Test-Path $vsix)) { throw "Extension package not found at $vsix." }
 $installer = Join-Path $vsPath 'Common7/IDE/VSIXInstaller.exe'
 
 # Exit 1002 means "not installed", which is a fine starting state.
-$uninstall = Start-Process $installer -ArgumentList '/quiet', "/uninstall:$extensionId" -Wait -PassThru
+$uninstallArguments = @('/quiet', "/uninstall:$extensionId")
+$uninstall = Start-Process $installer -ArgumentList $uninstallArguments -Wait -PassThru
 if ($uninstall.ExitCode -notin 0, 1002) {
     throw "Uninstall failed with exit code $($uninstall.ExitCode)."
 }
@@ -71,11 +81,19 @@ if ($install.ExitCode -ne 0) { throw "Install failed with exit code $($install.E
 # exact failure mode that made a freshly fixed command table stay invisible.
 $devenv = Join-Path $vsPath 'Common7/IDE/devenv.exe'
 $update = Start-Process $devenv -ArgumentList '/updateconfiguration' -Wait -PassThru
-if ($update.ExitCode -ne 0) { Write-Warning "devenv /updateconfiguration exited with $($update.ExitCode)." }
+if ($update.ExitCode -ne 0) {
+    Write-Warning "devenv /updateconfiguration exited with $($update.ExitCode)."
+}
 
 # Prove the deployed payload is the one just built, rather than trusting exit 0.
-$builtDll = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/bin/Release/Orikago.LanguageService.dll'
-$deployed = Get-ChildItem "$env:LOCALAPPDATA/Microsoft/VisualStudio/*/Extensions" -Recurse -Filter 'Orikago.LanguageService.dll' -ErrorAction SilentlyContinue
+$builtDll = Join-Path $languageServiceDirectory 'bin/Release/Orikago.LanguageService.dll'
+$deployedSearch = @{
+    Path        = "$env:LOCALAPPDATA/Microsoft/VisualStudio/*/Extensions"
+    Recurse     = $true
+    Filter      = 'Orikago.LanguageService.dll'
+    ErrorAction = 'SilentlyContinue'
+}
+$deployed = Get-ChildItem @deployedSearch
 $builtHash = (Get-FileHash $builtDll).Hash
 $match = $deployed | Where-Object { (Get-FileHash $_.FullName).Hash -eq $builtHash }
 
@@ -85,5 +103,3 @@ if (-not $match) {
 
 Write-Host "Installed $extensionId -> $($match[0].DirectoryName)"
 Write-Host "Restart Visual Studio for the extension to load."
-
-

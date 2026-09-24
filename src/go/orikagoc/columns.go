@@ -61,7 +61,8 @@ func (x *lineIndex) line(path string, line int) []byte {
 	if !ok {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			lines = nil // remembered as "unreadable"; do not retry
+			// Remembered as "unreadable"; do not retry.
+			lines = nil
 		} else {
 			lines = splitLines(data)
 		}
@@ -94,7 +95,7 @@ func splitLines(src []byte) [][]byte {
 	return lines
 }
 
-// utf16Len counts the UTF-16 code units needed for b. Bytes that are not
+// utf16Length counts the UTF-16 code units needed for b. Bytes that are not
 // valid UTF-8 count as one unit each, mirroring how a decoder that
 // substitutes U+FFFD would see them.
 //
@@ -103,7 +104,7 @@ func splitLines(src []byte) [][]byte {
 // else), its 3 bytes DO count in go/token's byte columns, but .NET and
 // Visual Studio strip it from the buffer, so it must not shift the
 // UTF-16 columns.
-func utf16Len(b []byte) int {
+func utf16Length(b []byte) int {
 	n := 0
 	for i := 0; i < len(b); {
 		r, size := utf8.DecodeRune(b[i:])
@@ -112,7 +113,8 @@ func utf16Len(b []byte) int {
 			continue
 		}
 		if r > 0xFFFF {
-			n += 2 // surrogate pair
+			// A surrogate pair.
+			n += 2
 		} else {
 			n++
 		}
@@ -121,51 +123,54 @@ func utf16Len(b []byte) int {
 	return n
 }
 
-// toUTF16Col converts a 1-based byte column on the given line of path into
+// toUTF16Column converts a 1-based byte column on the given line of path into
 // a 1-based UTF-16 code-unit column. Columns that cannot be resolved (no
 // such file or line) are returned unchanged, which is exactly right for
 // the pure-ASCII case and the best available answer otherwise.
-func (x *lineIndex) toUTF16Col(path string, line, byteCol int) int {
-	if byteCol <= 1 {
-		return byteCol
+func (x *lineIndex) toUTF16Column(path string, line, byteColumn int) int {
+	if byteColumn <= 1 {
+		return byteColumn
 	}
 	src := x.line(path, line)
 	if src == nil {
-		return byteCol
+		return byteColumn
 	}
-	n := byteCol - 1
+	n := byteColumn - 1
 	if n > len(src) {
 		// Past end of line (e.g. a position just after the last token):
 		// count the whole line and keep the overshoot.
-		return utf16Len(src) + 1 + (n - len(src))
+		return utf16Length(src) + 1 + (n - len(src))
 	}
-	return utf16Len(src[:n]) + 1
+	return utf16Length(src[:n]) + 1
 }
 
-// toByteCol converts a 1-based UTF-16 code-unit column on the given line
+// toByteColumn converts a 1-based UTF-16 code-unit column on the given line
 // of path into the 1-based byte column go/token uses. Unresolvable
 // columns are returned unchanged.
-func (x *lineIndex) toByteCol(path string, line, utf16Col int) int {
-	// Column 1 is NOT shortcut: on a BOM line the editor's column 1 is
-	// go/token's byte column 4, so even that needs the conversion below.
-	if utf16Col < 1 {
-		return utf16Col
+func (x *lineIndex) toByteColumn(path string, line, utf16Column int) int {
+	if utf16Column < 1 {
+		// Only non-positive columns pass through unchanged. Column 1 is NOT
+		// shortcut: on a BOM line the editor's column 1 is go/token's byte
+		// column 4, so even that needs the conversion below.
+		return utf16Column
 	}
 	src := x.line(path, line)
 	if src == nil {
-		return utf16Col
+		return utf16Column
 	}
-	want := utf16Col - 1 // UTF-16 units to skip
+	// UTF-16 units to skip.
+	want := utf16Column - 1
 	units, i := 0, 0
-	// Mirror of utf16Len's BOM rule: the BOM occupies 3 bytes of go/token's
-	// byte columns but zero UTF-16 units of the editor's, so skip it before
-	// counting.
 	if len(src) >= 3 && src[0] == 0xEF && src[1] == 0xBB && src[2] == 0xBF {
+		// The line starts with a BOM. Mirror of utf16Length's BOM rule: the
+		// BOM occupies 3 bytes of go/token's byte columns but zero UTF-16
+		// units of the editor's, so skip it before counting.
 		i = 3
 	}
 	for i < len(src) && units < want {
 		r, size := utf8.DecodeRune(src[i:])
 		if r > 0xFFFF {
+			// A surrogate pair.
 			units += 2
 		} else {
 			units++

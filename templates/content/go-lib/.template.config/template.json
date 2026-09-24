@@ -13,25 +13,30 @@
   "sourceName": "OrikagoLib",
   "preferNameDirectory": true,
   "forms": {
-    "lc": { "identifier": "lowerCase" },
-    "goIdentChars": {
+    "lowercase": { "identifier": "lowerCase" },
+    "goIdentifierChars": {
       "identifier": "replace",
       "pattern": "[^\\p{L}\\p{Nd}_]",
       "replacement": "_"
     },
-    "goIdentCollapse": {
+    "goIdentifierCollapse": {
       "identifier": "replace",
       "pattern": "_+",
       "replacement": "_"
     },
-    "goIdentNoLeadingDigit": {
+    "goIdentifierNoLeadingDigit": {
       "identifier": "replace",
       "pattern": "^([0-9])",
       "replacement": "_$1"
     },
     "goPackageSafe": {
       "identifier": "chain",
-      "steps": [ "lc", "goIdentChars", "goIdentCollapse", "goIdentNoLeadingDigit" ]
+      "steps": [
+        "lowercase",
+        "goIdentifierChars",
+        "goIdentifierCollapse",
+        "goIdentifierNoLeadingDigit"
+      ]
     },
     "goModuleChars": {
       "identifier": "replace",
@@ -50,7 +55,7 @@
     },
     "goModuleSafe": {
       "identifier": "chain",
-      "steps": [ "lc", "goModuleChars", "goModuleCollapse", "goModuleTrimDots" ]
+      "steps": [ "lowercase", "goModuleChars", "goModuleCollapse", "goModuleTrimDots" ]
     }
   },
   "symbols": {
@@ -69,13 +74,34 @@
       "replaces": "GO_LANG_VERSION",
       "displayName": "Go language version",
       "choices": [
-        { "choice": "1.13", "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)" },
-        { "choice": "1.18", "description": "Go 1.18 (introduces generics)" },
-        { "choice": "1.21", "description": "Go 1.21 (default; matches the local toolchain)" },
-        { "choice": "1.22", "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)" },
-        { "choice": "1.23", "description": "Go 1.23" },
-        { "choice": "1.24", "description": "Go 1.24" },
-        { "choice": "1.25", "description": "Go 1.25" }
+        {
+          "choice": "1.13",
+          "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)"
+        },
+        {
+          "choice": "1.18",
+          "description": "Go 1.18 (introduces generics)"
+        },
+        {
+          "choice": "1.21",
+          "description": "Go 1.21 (default; matches the local toolchain)"
+        },
+        {
+          "choice": "1.22",
+          "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)"
+        },
+        {
+          "choice": "1.23",
+          "description": "Go 1.23"
+        },
+        {
+          "choice": "1.24",
+          "description": "Go 1.24"
+        },
+        {
+          "choice": "1.25",
+          "description": "Go 1.25"
+        }
       ]
     },
     "packageName": {

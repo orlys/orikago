@@ -1,52 +1,61 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.Composition;
+namespace Orikago.LanguageService;
+
 using Microsoft.VisualStudio.ProjectSystem;
 using Microsoft.VisualStudio.ProjectSystem.VS;
 
-namespace Orikago.LanguageService
-{
-    /// <summary>
-    /// Swaps the context menu of the Go project's Dependencies ROOT node from
-    /// the shell's shared IDM_VS_CTXT_REFERENCEROOT (which carries "Add Project
-    /// Reference...", "Manage NuGet Packages..." and other .NET-only
-    /// placements) to the private menu defined in OrikagoPackage.vsct, whose
-    /// only content is "Add Go Module Reference...". Same extension point the
-    /// managed project system itself uses (its DependenciesContextMenuProvider
-    /// does this mapping at a lower Order); child nodes fall through to the
-    /// default providers untouched.
-    /// </summary>
-    [Export(typeof(IProjectItemContextMenuProvider))]
-    [AppliesTo("Orikago")]
-    [Order(1000)]
-    internal sealed class GoDependenciesContextMenuProvider : IProjectItemContextMenuProvider
-    {
-        private static readonly Guid OrikagoCmdSet = new Guid("1F6D3B85-42A9-4E0C-9B7D-E85C2A94F316");
-        private const int MenuGoDependenciesContext = 0x2000;
+using Orikago.LanguageService.Definitions;
 
-        public bool TryGetContextMenu(IProjectTree projectItem, out Guid menuCommandGuid, out int menuCommandId)
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.Composition;
+
+/// <summary>
+/// Swaps the context menu of the Go project's Dependencies ROOT node for a private one.
+/// </summary>
+/// <remarks>
+/// The shell's shared IDM_VS_CTXT_REFERENCEROOT carries "Add Project Reference...", "Manage
+/// NuGet Packages..." and other .NET-only placements; the private menu defined in
+/// OrikagoPackage.vsct only contains "Add Go Module Reference...". Same extension point the
+/// managed project system itself uses (its DependenciesContextMenuProvider does this mapping
+/// at a lower Order); child nodes fall through to the default providers untouched.
+/// </remarks>
+[Export(typeof(IProjectItemContextMenuProvider))]
+[AppliesTo(ProjectCapabilityNames.Orikago)]
+[Order(1000)]
+internal sealed class GoDependenciesContextMenuProvider : IProjectItemContextMenuProvider
+{
+    private static readonly Guid s_commandSet = new(OrikagoCommandTable.CommandSetGuidString);
+
+    public bool TryGetContextMenu(
+        IProjectTree projectItem,
+        out Guid menuCommandGuid,
+        out int menuCommandId)
+    {
+        if ((projectItem is not null) && projectItem.Flags.Contains("DependenciesRootNode"))
         {
             // Only the dependencies root is remapped. The project ROOT node's
             // menu does NOT come through this extension point (tried: the
             // shared menu kept showing), so NuGet's command is hidden with a
             // command-group handler instead - see GoHiddenNuGetCommandsHandler.
-            if (projectItem != null && projectItem.Flags.Contains("DependenciesRootNode"))
-            {
-                menuCommandGuid = OrikagoCmdSet;
-                menuCommandId = MenuGoDependenciesContext;
-                return true;
-            }
-
-            menuCommandGuid = default;
-            menuCommandId = 0;
-            return false;
+            menuCommandGuid = s_commandSet;
+            menuCommandId = OrikagoCommandTable.GoDependenciesContextMenuId;
+            return true;
         }
 
-        public bool TryGetMixedItemsContextMenu(IEnumerable<IProjectTree> projectItems, out Guid menuCommandGuid, out int menuCommandId)
-        {
-            menuCommandGuid = default;
-            menuCommandId = 0;
-            return false;
-        }
+        // Every other node keeps the menu the default providers give it
+        menuCommandGuid = default;
+        menuCommandId = 0;
+        return false;
+    }
+
+    public bool TryGetMixedItemsContextMenu(
+        IEnumerable<IProjectTree> projectItems,
+        out Guid menuCommandGuid,
+        out int menuCommandId)
+    {
+        // Multi-selections keep the default menu
+        menuCommandGuid = default;
+        menuCommandId = 0;
+        return false;
     }
 }

@@ -8,7 +8,10 @@
     <RootNamespace>Orikago.CodeAnalysis</RootNamespace>
     <AssemblyName>Orikago.CodeAnalysis</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Description>Roslyn-style Go compiler platform for C#: syntax trees, diagnostics and semantic queries via the orikagoc sidecar.</Description>
+    <!-- Built in two steps only to keep each line within 120 characters (rules/018); -->
+    <!-- the resulting NuGet description is the same single sentence. -->
+    <Description>Roslyn-style Go compiler platform for C#: syntax trees, diagnostics and</Description>
+    <Description>$(Description) semantic queries via the orikagoc sidecar.</Description>
   </PropertyGroup>
 
 </Project>

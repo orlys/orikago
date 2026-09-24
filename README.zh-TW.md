@@ -1,32 +1,41 @@
 # Orikago — Orikago.Sdk 範例專案
 
 > [!WARNING]
-> **實驗性專案。** 這是個人探索「把 Visual Studio 推到能容納一個它從未設計要支援的語言」能走多遠的成果,與 Microsoft 或 Go 團隊無關,也不受其背書或支援。
+> **實驗性專案。** 這是個人探索「把 Visual Studio 推到能容納一個它從未設計要支援的語言」能走多遠的成果，與 Microsoft 或 Go 團隊無關，也不受其背書或支援。
 >
-> 請預期它會壞:整套東西依賴大量不保證相容性的 Visual Studio 內部細節——沒有文件的 AD7 metric、pkgdef 註冊眉角、CPS 擴充點,以及靠反編譯內建元件觀察到的行為。任何一次 Visual Studio 更新都可能在毫無預警下讓它失效。這裡沒有任何部分經歷過一個正式工具應有的測試強度。
+> 請預期它會壞：整套東西依賴大量不保證相容性的 Visual Studio 內部細節——沒有文件的 AD7 計量、pkgdef 註冊眉角、CPS
+> 擴充點，以及靠反向組譯內建元件觀察到的行為。任何一次 Visual Studio 更新都可能在毫無預警下讓它失效。這裡沒有任何部分經歷過一個正式工具應有的測試強度。
 >
-> 如果你對這個題目本身感興趣、也不介意自己動手診斷一個行為怪異的 IDE,那就用吧。但不要把它交給一個只想把東西做完出貨的團隊。
+> 如果你對這個題目本身感興趣、也不介意自己動手診斷一個行為怪異的 IDE，那就用吧。但不要把它交給一個只想把東西做完出貨的團隊。
 
 > [!NOTE]
-> **本專案全為 Vibe Coding 產物。** 這裡的每一項產出——MSBuild SDK、VSIX、Go 邊車、以及這些文件——都是由 AI 代理透過對話產生的,作者負責決定方向與驗收結果,而不是自己敲程式碼。
+> **本專案全為 Vibe Coding 產物。** 這裡的每一項產出——MSBuild SDK、VSIX、Go 邊車、以及這些文件——都是由 AI
+> 代理透過對話產生的，作者負責決定方向與驗收結果，而不是自己敲程式碼。
 >
-> 這**不**代表內容是憑空猜的:設計決策來自反編譯那些解決同類問題的內建元件,而本文件中關於行為的每項宣稱都是實際跑出來的——DAP 協定記錄、修正前後的重現腳本、真實 IDE 的截圖。走錯的路也連同正確解法一起記在 [`docs/pitfalls.md`](docs/pitfalls.md)。
+> 這**不**代表內容是憑空猜的：設計決策來自反向組譯那些解決同類問題的內建元件，而本文件中關於行為的每項宣稱都是實際跑出來的——DAP 協定記錄、修正前後的重現腳本、真實 IDE
+> 的截圖。走錯的路也連同正確解法一起記在 [`docs/pitfalls.md`](docs/pitfalls.md)。
 >
-> 但這確實代表:沒有任何人類逐行審查過全部程式碼。請據此判斷它的可信度。
+> 但這確實代表：沒有任何人類逐行審查過全部程式碼。請據此判斷它的可信度。
 
 [English](README.md)
 
-![Visual Studio 編輯 Go 專案:.goproj 以 GoModuleReference 宣告 github.com/oklog/ulid/v2、main.go 有 Go 語法著色與中斷點且 gopls 回報無問題、相依性節點的右鍵選單只有「Add Go Module Reference...」與「Tidy Go Modules」、下方「Orikago」輸出窗格顯示 go mod tidy 與 go generate 已執行完成。](img/1.png)
+![Visual Studio 編輯 Go 專案：.goproj 以 GoModuleReference 宣告 github.com/oklog/ulid/v2、main.go 有 Go
+語法著色與中斷點且 gopls 回報無問題、相依性節點的右鍵選單只有「Add Go Module Reference...」與「Tidy Go
+Modules」、下方「Orikago」輸出窗格顯示 go mod tidy 與 go generate 已執行完成。](img/1.png)
 
-畫面上的每一項都是這個專案做的:`.goproj` 像 `.csproj` 一樣宣告相依、gopls 負責著色與診斷、中斷點透過 delve 繫結、相依性節點放的是 Go 命令而非 NuGet,`go mod tidy`／`go generate` 的結果進到專屬的輸出窗格。
+畫面上的每一項都是這個專案做的：`.goproj` 像 `.csproj` 一樣宣告相依、gopls 負責著色與診斷、中斷點透過 delve 繫結、相依性節點放的是 Go 命令而非
+NuGet，`go mod tidy`／`go generate` 的結果進到專屬的輸出窗格。
 
-> 開發者請先看 [`docs/pitfalls.md`](docs/pitfalls.md):VS 擴充、CPS capability 與 delve 偵錯的實際踩坑記錄(症狀／根因／解法／診斷方式),幾乎全是沒有錯誤訊息的靜默失敗。偵錯功能規劃見 [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md)。
+> 開發者請先看 [`docs/pitfalls.md`](docs/pitfalls.md)：VS 擴充功能、CPS 專案能力與 delve
+> 偵錯的實際踩坑記錄（症狀／根因／解法／診斷方式），幾乎全是沒有錯誤訊息的靜默失敗。偵錯功能規劃見
+> [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md)。
 
-本專案示範如何使用 **Orikago.Sdk**（一個自訂的 MSBuild 專案 SDK）以 .NET CLI 工具鏈來建置、執行、測試與發佈 **Go** 程式。
+本專案示範如何使用 **Orikago.Sdk**（一個自訂的 MSBuild 專案 SDK）以 .NET CLI 工具鏈來建置、執行、測試與發行 **Go** 程式。
 
 ## 什麼是 Orikago.Sdk？
 
-Orikago.Sdk 是一個以 NuGet 套件形式散發的 **MSBuild 專案 SDK**（`PackageType=MSBuildSdk`）。它讓 `.goproj` 專案檔可以直接寫成：
+Orikago.Sdk 是一個以 NuGet 套件形式散發的 **MSBuild 專案 SDK**（`PackageType=MSBuildSdk`）。它讓 `.goproj`
+專案檔可以直接寫成：
 
 ```xml
 <Project Sdk="Orikago.Sdk/0.1.0-preview">
@@ -38,7 +47,10 @@ Orikago.Sdk 是一個以 NuGet 套件形式散發的 **MSBuild 專案 SDK**（`P
 </Project>
 ```
 
-SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`dotnet` CLI 能運作），同時停用 C# 編譯器與相關輸出，改由 Go 工具鏈（`go build` / `go test` / `go vet`）完成真正的編譯工作。輸出的執行檔放在 `bin/$(Configuration)/`（例如 `bin/Debug/hello.exe`）。`TargetFramework` 只是為了滿足 `Microsoft.NET.Sdk` 而存在，對 Go 二進位毫無意義，因此 SDK 設定 `AppendTargetFrameworkToOutputPath=false` 把它從路徑中拿掉。
+SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`dotnet` CLI 能運作），同時停用 C# 編譯器與相關輸出，改由 Go
+工具鏈（`go build`／`go test`／`go vet`）完成真正的編譯工作。輸出的執行檔放在 `bin/$(Configuration)/`（例如
+`bin/Debug/hello.exe`）。`TargetFramework` 只是為了滿足 `Microsoft.NET.Sdk` 而存在，對 Go 二進位毫無意義，因此 SDK 設定
+`AppendTargetFrameworkToOutputPath=false` 把它從路徑中拿掉。
 
 ## 支援的屬性
 
@@ -46,49 +58,66 @@ SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`d
 |------|------|
 | `LangVersion` | 對應 Go 的語言版本。SDK 會執行 `go mod edit -go=<版本>`，由 Go 工具鏈依 `go.mod` 的 `go` 指示詞把關語言功能。例如設定 `1.13` 後，使用泛型會得到編譯錯誤「requires go1.18 or later」——這是真實的語意，不是模擬。 |
 | `OutputType` | `Exe`（預設）：`go build -o` 產生執行檔；`Library`：`go build ./...` 只做編譯檢查，不產生執行檔。 |
-| `DefineConstants` | 以分號分隔的清單，會轉換為 Go 的組建標籤（build tags）：`a;b` → `go build -tags "a,b"`。 |
+| `DefineConstants` | 以分號分隔的清單，會轉換為 Go 的建置標籤（build tags）：`a;b` → `go build -tags "a,b"`。 |
 | `GoFlags` | 原封不動附加到 `go build` 命令列的額外旗標。 |
-| `GoOs` / `GoArch` | 覆寫 `GOOS` / `GOARCH` 環境變數，手動指定交叉編譯目標。 |
+| `GoOs`／`GoArch` | 覆寫 `GOOS`／`GOARCH` 環境變數，手動指定交叉編譯目標。 |
 | `RunGoVet` | 設為 `true` 時，建置完成後自動執行 `go vet`。 |
 | `GoEnsureWorkspaceMembership` | 預設為 `true`；設為 `false` 可讓此專案不要自動加入 `go.work`（詳見下方「go.work 工作區成員自動註冊」）。 |
 
 ### 模組參考（GoModuleReference）
 
-`GoModuleReference` 是 Go 世界的 `PackageReference`——在 `.goproj` 裡宣告相依模組，建置時 SDK 以 `go get` 解析並寫入 `go.mod` / `go.sum`（含傳遞相依）：
+`GoModuleReference` 是 Go 世界的 `PackageReference`——在 `.goproj` 裡宣告相依模組，建置時 SDK 以 `go get` 解析並寫入
+`go.mod`／`go.sum`（含傳遞相依）：
 
 ```xml
 <ItemGroup>
   <GoModuleReference Include="rsc.io/quote" Version="v1.5.2" />
-  <GoModuleReference Include="golang.org/x/text" /> <!-- 省略 Version = 最新版 -->
+  <!-- 省略 Version = 最新版 -->
+  <GoModuleReference Include="golang.org/x/text" />
 </ItemGroup>
 ```
 
-冪等規則與 `LangVersion` 相同：`go.mod` 已含該模組（且版本吻合）時完全不執行 `go get`，`go.mod` 的 mtime 不變，不會破壞增量建置。改變 `Version` 會重新解析；**移除**參考不會從 `go.mod` 移除 require——那是 `go mod tidy` 的職責。
+等冪規則與 `LangVersion` 相同：`go.mod` 已含該模組（且版本吻合）時完全不執行 `go get`，`go.mod` 的 mtime 不變，不會破壞增量建置。改變
+`Version` 會重新解析；**移除**參考不會從 `go.mod` 移除 require——那是 `go mod tidy` 的職責。
 
-也可以不用手寫：在 Solution Explorer 的 **「相依性（Dependencies）」節點上按右鍵 →「加入 Go 模組參考… / Add Go Module Reference…」**，輸入模組路徑與版本（留空＝最新版）即可。命令由 VSIX 的 `OrikagoPackage` 提供，多語系（預設英文，另有 zh-TW／zh-CN 字串集，跟隨 VS 顯示語言），只在具 `Orikago` capability 的專案（`.goproj`）上出現；同一模組已有參考時會就地更新 `Version`。寫入後 CPS 因 `HandlesOwnReload` 自動重載專案，下次建置由 `GoRestoreModules` 以 `go get` 解析。技術備註：Dependencies 節點的右鍵選單其實是 shell 的 `IDM_VS_CTXT_REFERENCEROOT`（managed 專案系統的 `DependenciesContextMenuProvider` 將樹節點映射過去），vsct 直接 parent 上去即可；VSCT 多語系用同一 Button 下多個 `<Strings language="…">` 區塊。
+也可以不用手寫：在方案總管的 **「相依性（Dependencies）」節點上按右鍵 →「加入 Go 模組參考… / Add Go Module
+Reference…」**，輸入模組路徑與版本（留空＝最新版）即可。命令由 VSIX 的 `OrikagoPackage` 提供，多語系（預設英文，另有 zh-TW／zh-CN 字串集，跟隨
+VS 顯示語言），只在具 `Orikago` 專案能力的專案（`.goproj`）上出現；同一模組已有參考時會就地更新 `Version`。寫入後 CPS 因
+`HandlesOwnReload` 自動重新載入專案，下次建置由 `GoRestoreModules` 以 `go get` 解析。技術備註：相依性節點的右鍵選單其實是殼層的
+`IDM_VS_CTXT_REFERENCEROOT`（受控專案系統的 `DependenciesContextMenuProvider` 將樹節點映射過去），vsct
+直接以它為父項即可；VSCT 多語系用同一 Button 下多個 `<Strings language="…">` 區塊。
 
-Dependencies 節點下與 .NET 相關的子節點（組件／COM／WinRT 參考）已一併隱藏——SDK 移除 `AssemblyReferences`／`COMReferences`／`WinRTReferences` capability；`ProjectReferences` 保留（`.goproj` 之間的專案參考是支援的）。
+相依性節點下與 .NET 相關的子節點（組件／COM／WinRT 參考）已一併隱藏——SDK 移除
+`AssemblyReferences`／`COMReferences`／`WinRTReferences` 專案能力；`ProjectReferences` 保留（`.goproj`
+之間的專案參考是支援的）。
 
 **Go 工具命令**（VSIX 提供，只在 `.goproj` 上出現，多語系）：
 
 | 選單項目 | 位置 | 實際執行 | 說明 |
 |------|------|------|------|
 | 加入 Go 模組參考… | 相依性節點右鍵 | 寫入 `GoModuleReference` | 下次建置以 `go get` 解析 |
-| 整理 Go 模組相依 | 相依性節點右鍵 | `go mod tidy` | 移除 go.mod 中未使用的模組、補上缺少的。這是 Code Cleanup 的相依層對應物——原始碼層的整理（gofmt／整理 import）由 gopls 負責 |
+| 整理 Go 模組相依 | 相依性節點右鍵 | `go mod tidy` | 移除 go.mod 中未使用的模組、補上缺少的。這是程式碼清除的相依層對應物——原始碼層的整理（gofmt／整理匯入）由 gopls 負責 |
 | 執行 Go 產生器 | 專案節點右鍵 | `go generate ./...` | 執行 `//go:generate` 指示。Go 的建置**不會**自動執行它，因此這是 IDE 內唯一的入口 |
 | 執行 Go 靜態檢查 | 專案節點右鍵 | `go vet ./...` | 不必重新建置即可單獨執行（建置期的等效做法是 `-p:RunGoVet=true`） |
 
-輸出會寫進「Orikago」輸出窗格，失敗另以對話框提示。
+輸出會寫進「Orikago」輸出窗格，失敗另以對話方塊提示。
 
 Go 專案的相依一律走 go.mod——**NuGet 對 `.goproj` 是完全隱形的**：
 
-- 「管理 NuGet 套件」不出現在專案右鍵選單：SDK 移除 `PackageReferences`／`AssemblyReferences` capability（讓 NuGet 判定專案不支援），VSIX 再以 CPS 的 `IAsyncCommandGroupHandler`（`GoHiddenNuGetCommandsHandler`，`AppliesTo("Orikago")`）把該命令標為不可見。**兩者缺一不可**——NuGet 的可見性只看「方案是否開啟」，與專案型別無關，單靠 capability 只會讓命令留在選單上、點下去回報「專案不支援」；
-- **不需要 restore**：`SkipResolvePackageAssets=true` 讓建置完全不要求 `obj/project.assets.json`（VS 對 .goproj 也不會執行 NuGet 還原）；
-- **不需要 per-project nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.1.0-preview"` 這個 SDK 套件本身——把本機 feed 註冊到使用者層級一次即可（`dotnet nuget add source <repo>\packages --name orikago-local --configfile %APPDATA%\NuGet\NuGet.Config`），或把 nupkg 發佈到自有 NuGet 伺服器。已驗證：清空全域快取後,無任何 nuget.config 的專案照常解析 SDK 並建置。
+- 「管理 NuGet 套件」不出現在專案右鍵選單：SDK 移除 `PackageReferences`／`AssemblyReferences` 專案能力（讓 NuGet
+  判定專案不支援），VSIX 再以 CPS 的
+  `IAsyncCommandGroupHandler`（`GoHiddenNuGetCommandsHandler`，`AppliesTo("Orikago")`）把該命令標為不可見。**兩者缺一不可**——NuGet
+  的可見性只看「方案是否開啟」，與專案型別無關，單靠專案能力只會讓命令留在選單上、點下去回報「專案不支援」；
+- **不需要還原**：`SkipResolvePackageAssets=true` 讓建置完全不要求 `obj/project.assets.json`（VS 對 .goproj
+  也不會執行 NuGet 還原）；
+- **不需要個別專案的 nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.1.0-preview"` 這個 SDK
+  套件本身——把本機摘要來源註冊到使用者層級一次即可（`dotnet nuget add source <repo>\packages --name orikago-local
+  --configfile %APPDATA%\NuGet\NuGet.Config`），或把 nupkg 發行到自有 NuGet 伺服器。已驗證：清空全域快取後，無任何
+  nuget.config 的專案照常解析 SDK 並建置。
 
 另外，`Configuration` 也會影響編譯旗標：
 
-- **Debug**：`-gcflags "all=-N -l"`（停用最佳化與內嵌，利於除錯）。
+- **Debug**：`-gcflags "all=-N -l"`（停用最佳化與內嵌，利於偵錯）。
 - **Release**：`-trimpath -ldflags "-s -w"`（去除路徑資訊與符號表，縮小執行檔）。
 
 ## 常用命令
@@ -103,7 +132,7 @@ dotnet run
 # 執行 go test ./...（測試失敗會使命令失敗）
 dotnet test
 
-# 交叉編譯發佈（RID 會對應到 GOOS/GOARCH）
+# 交叉編譯發行（RID 會對應到 GOOS/GOARCH）
 dotnet publish -r linux-arm64
 dotnet publish -r win-x64
 dotnet publish -r osx-arm64
@@ -112,15 +141,28 @@ dotnet publish -r osx-arm64
 dotnet clean
 ```
 
-RID 對應表：`win-x64`→`windows/amd64`、`win-arm64`→`windows/arm64`、`linux-x64`→`linux/amd64`、`linux-arm64`→`linux/arm64`、`osx-x64`→`darwin/amd64`、`osx-arm64`→`darwin/arm64`。未指定 RID 時使用主機平台；只有 `GOOS=windows` 的輸出才會加上 `.exe` 副檔名。
+RID 對應表：`win-x64`→`windows/amd64`、`win-arm64`→`windows/arm64`、`linux-x64`→`linux/amd64`、
+`linux-arm64`→`linux/arm64`、`osx-x64`→`darwin/amd64`、`osx-arm64`→`darwin/arm64`。未指定 RID
+時使用主機平台；只有 `GOOS=windows` 的輸出才會加上 `.exe` 副檔名。
 
 ## Go 診斷送進 Visual Studio 錯誤清單（GoExec）
 
-`go build` / `go vet` / `go test` 回報的錯誤形如 `main.go:6:14: undefined: x`，而 MSBuild 只認得標準格式 `檔案(行,欄): error 代碼: 訊息`。SDK 先前的六個 `<Exec>` 都沒有做任何轉換，結果是**整個建置只產生一筆 `MSB3073`**，而且它指向 NuGet 快取裡的 `Sdk.targets`——在錯誤清單裡雙擊建置錯誤，會把開發者帶到 `D:\.nuget\packages\…`，而不是自己的原始碼。gopls 沒有啟動時，這是唯一還活著的錯誤回報路徑，卻完全不能用。
+`go build`／`go vet`／`go test` 回報的錯誤形如 `main.go:6:14: undefined: x`，而 MSBuild 只認得標準格式
+`檔案(行,欄): error 代碼: 訊息`。SDK 先前的六個 `<Exec>` 都沒有做任何轉換，結果是**整個建置只產生一筆 `MSB3073`**，而且它指向 NuGet 快取裡的
+`Sdk.targets`——在錯誤清單裡雙擊建置錯誤，會把開發者帶到 `D:\.nuget\packages\…`，而不是自己的原始碼。gopls
+沒有啟動時，這是唯一還活著的錯誤回報路徑，卻完全不能用。
 
-**`Exec` 的 `CustomErrorRegularExpression` 解不了這個問題**：它只決定哪些行要被轉送到 `Log.LogError(string)`，而那個單一參數多載不帶檔案／行／欄資訊，MSBuild 只能把錯誤歸屬到**執行工作的位置**，也就是 `Sdk.targets` 本身。要填滿標準欄位，唯一的辦法是 10 參數多載 `Log.LogError(subcategory, code, helpKeyword, file, line, col, endLine, endCol, message)`，而那需要一個真正的工作（Task）。
+**`Exec` 的 `CustomErrorRegularExpression` 解不了這個問題**：它只決定哪些行要被轉送到
+`Log.LogError(string)`，而那個單一參數多載不帶檔案／行／欄資訊，MSBuild 只能把錯誤歸屬到**執行工作的位置**，也就是 `Sdk.targets`
+本身。要填滿標準欄位，唯一的辦法是 10 參數多載
+`Log.LogError(subcategory, code, helpKeyword, file, line, col, endLine, endCol,
+message)`，而那需要一個真正的工作（Task）。
 
-因此新增 `sdk/Orikago.Sdk/Sdk/GoDiagnostics.targets`，以 **`RoslynCodeTaskFactory` 行內工作**定義 `<GoExec>`（`dotnet build` 的 MSBuild Core 與 Visual Studio 18 的 MSBuild.exe 都支援，SDK 套件依然只含 MSBuild 邏輯，不需要編譯、簽章或封裝任何組件）。`Sdk.targets` 中 `GoBuild`（Exe／Library）、`GoVet`、`VSTest`、`Publish`（Exe／Library）共六處 `<Exec>` 全部改用 `<GoExec>`，並各自帶 `ErrorCode="GOBUILD"` / `"GOVET"` / `"GOTEST"`。
+因此新增 `sdk/Orikago.Sdk/Sdk/GoDiagnostics.targets`，以 **`RoslynCodeTaskFactory` 內嵌工作**定義
+`<GoExec>`（`dotnet build` 的 MSBuild Core 與 Visual Studio 18 的 MSBuild.exe 都支援，SDK 套件依然只含 MSBuild
+邏輯，不需要編譯、簽章或封裝任何組件）。`Sdk.targets` 中
+`GoBuild`（Exe／Library）、`GoVet`、`VSTest`、`Publish`（Exe／Library）共六處 `<Exec>` 全部改用 `<GoExec>`，並各自帶
+`ErrorCode="GOBUILD"`／`"GOVET"`／`"GOTEST"`。
 
 `GoExec` 逐行解析工具鏈輸出，處理下列所有情況：
 
@@ -129,17 +171,20 @@ RID 對應表：`win-x64`→`windows/amd64`、`win-arm64`→`windows/arm64`、`l
 | `.\main.go:6:14: undefined: x` | 去掉 `.\`／`./` 前置詞，以 `WorkingDirectory` 解析成絕對路徑，發出 `main.go(6,14): error GOBUILD: undefined: x` |
 | `sub\a.go:11:23: …` | 子套件的相對路徑同樣正確解析 |
 | `# example.com/m/sub` | 套件標頭：以訊息輸出，不是錯誤 |
-| 以 **Tab** 開頭的續行（`have Do(string) error` / `want Do(int) error`） | 併入前一筆診斷（以 `; ` 相接）。MSBuild 會為多行錯誤訊息的**每一行**重複前置 `檔案(行,欄): error 代碼:`，一筆診斷會看起來像三筆 |
-| `vet: ` / `vet.exe: ` 前置詞 | 先剝除再比對 |
+| 以 **Tab** 開頭的續行（`have Do(string) error`／`want Do(int) error`） | 併入前一筆診斷（以 `; ` 相接）。MSBuild 會為多行錯誤訊息的**每一行**重複前置 `檔案(行,欄): error 代碼:`，一筆診斷會看起來像三筆 |
+| `vet: `／`vet.exe: ` 前置詞 | 先剝除再比對 |
 | `    a_test.go:8: B() = 1, want 2` | `testing` 套件只保留檔名（`file[lastIndexByte(file,'/')+1:]`），直接解析會指向不存在的根目錄檔案；解析失敗時改以工作目錄下原始檔**基底檔名索引**回填，且只接受唯一命中 |
 | 其他行 | `Log.LogMessage(High)`，維持 `go test` 輸出的可讀性 |
 
 兩個關鍵設計：
 
-1. **`t.Logf` 與 `t.Errorf` 的輸出完全相同**，不能一律當成錯誤，否則通過的測試也會讓建置失敗。`go test`（非 verbose）先印 `--- FAIL: TestX` 再印該測試的紀錄行，`go test -v` 卻是**先紀錄、後判定**。因此在判定未知時，診斷會先暫存，由隨後的 `--- FAIL`（轉為錯誤）或 `--- PASS`／`--- SKIP`（維持訊息）決定。
+1. **`t.Logf` 與 `t.Errorf` 的輸出完全相同**，不能一律當成錯誤，否則通過的測試也會讓建置失敗。`go test`（非詳細模式）先印
+   `--- FAIL: TestX` 再印該測試的記錄行，`go test -v` 卻是**先記錄、後判定**。因此在判定未知時，診斷會先暫存，由隨後的 `--- FAIL`（轉為錯誤）或
+   `--- PASS`／`--- SKIP`（維持訊息）決定。
 2. **只有在完全沒有結構化診斷時**，才補上一筆通用的「命令結束代碼非 0」錯誤。否則那筆通用訊息會像從前的 `MSB3073` 一樣蓋掉真正的 Go 診斷。
 
-驗證（`dotnet build`、`dotnet test`、VS 18 的 `MSBuild.exe` 與 `devenv /Rebuild` 皆已實測）：在 `main.go` 第 6 行放入 `undefinedThing()`，建置輸出為
+驗證（`dotnet build`、`dotnet test`、VS 18 的 `MSBuild.exe` 與 `devenv /Rebuild` 皆已實測）：在 `main.go` 第 6
+行放入 `undefinedThing()`，建置輸出為
 
 ```
 <專案路徑>\main.go(6,14): error GOBUILD: undefined: undefinedThing
@@ -149,24 +194,33 @@ Build FAILED.
 
 沒有 `MSB3073`，路徑是使用者原始碼的絕對路徑。
 
-> 已知限制：失敗測試中的 `t.Logf` 紀錄行仍會一併升級為錯誤（Go 的輸出無從分辨），它們是該次失敗的上下文。`go test -parallel` 的 verbose 輸出中多個測試的紀錄行會交錯，但歸屬不再靠猜——見下方「MSBuild SDK 的正確性修正」。**錯誤清單中「雙擊即跳到該行」屬於 Visual Studio UI 行為，只能在 IDE 內目視確認**；本文所述皆為可在無介面環境重現的建置輸出。
+> 已知限制：失敗測試中的 `t.Logf` 記錄行仍會一併升級為錯誤（Go 的輸出無從分辨），它們是該次失敗的上下文。`go test -parallel`
+> 的詳細輸出中多個測試的記錄行會交錯，但歸屬不再靠猜——見下方「MSBuild SDK 的正確性修正」。**錯誤清單中「雙擊即跳到該行」屬於 Visual Studio UI 行為，只能在
+> IDE 內目視確認**；本文所述皆為可在無介面環境重現的建置輸出。
 
 ## go.work 工作區成員自動註冊
 
-存放庫根目錄有一份 `go.work`。**`GOWORK` 會被所有子目錄繼承**，因此只要在這棵目錄樹底下新增一個模組，它就「位於工作區之內」，但在 `go.work` 的 `use` 區塊列出它之前並不是工作區的**成員**——而 Go 工具鏈會直接拒絕建置：
+存放庫根目錄有一份 `go.work`。**`GOWORK` 會被所有子目錄繼承**，因此只要在這棵目錄樹底下新增一個模組，它就「位於工作區之內」，但在 `go.work` 的 `use`
+區塊列出它之前並不是工作區的**成員**——而 Go 工具鏈會直接拒絕建置：
 
 ```
 main module (orikago) does not contain package orikago/MyTool
 ```
 
-這正是「新增專案」流程會產生的結果：範本建立的專案能通過 `dotnet new`，卻無法建置。SDK 因此新增 `GoEnsureWorkspace` 目標（`Sdk.targets`），在 `GoEnsureMod` 之後、`GoBuild`／`VSTest`／`Publish` 之前執行：
+這正是「新增專案」流程會產生的結果：範本建立的專案能通過 `dotnet new`，卻無法建置。SDK 因此新增 `GoEnsureWorkspace` 目標（`Sdk.targets`），在
+`GoEnsureMod` 之後、`GoBuild`／`VSTest`／`Publish` 之前執行：
 
-1. 先做一次不啟動行程的預先判斷——`GOWORK` 環境變數若已設定就採用它（`GOWORK` 只能來自環境變數，`go env -w GOWORK=…` 會回答 `go: GOWORK cannot be modified`），否則由專案目錄往上尋找 `go.work`。兩者皆無代表沒有工作區，直接跳過，**完全不付出啟動行程的代價**。
+1. 先做一次不啟動處理序的預先判斷——`GOWORK` 環境變數若已設定就採用它（`GOWORK` 只能來自環境變數，`go env -w GOWORK=…` 會回答
+   `go: GOWORK cannot be modified`），否則由專案目錄往上尋找 `go.work`。兩者皆無代表沒有工作區，直接跳過，**完全不付出啟動處理序的代價**。
 2. 確實有工作區時，才以 `go env GOWORK` 取得權威值，並用 `[MSBuild]::MakeRelative` 換算出專案相對於 `go.work` 的路徑。
-3. **僅在該模組確實不在 `use` 清單中時**才執行 `go work use`。這個等冪性防護與 `GoEnsureMod` 對 `go mod edit` 的做法一致：否則 `go.work` 的修改時間每次建置都會被更新，破壞增量建置。比對時會接受 `use (…)` 區塊與單行 `use <path>` 兩種寫法、可有可無的 `./` 前置詞、含空白路徑的引號形式，以及絕對路徑寫法；路徑會先經 `Regex.Escape` 處理，避免 `v1.2` 這類名稱中的 `.` 被當成萬用字元。
-4. 傳給 `go work use` 的是**相對路徑**。`go work use` 會原封不動記下你給的引數，因此若傳絕對路徑，就會把「這台機器專屬」且在 Windows 上以反斜線分隔的項目寫進一份通常要簽入版控的檔案；從 `go.work` 所在目錄以相對路徑執行，寫入的才是 go 自己慣用的 `./<path>` 形式。
+3. **僅在該模組確實不在 `use` 清單中時**才執行 `go work use`。這個等冪性防護與 `GoEnsureMod` 對 `go mod edit` 的做法一致：否則
+   `go.work` 的修改時間每次建置都會被更新，破壞增量建置。比對時會接受 `use (…)` 區塊與單行 `use <path>` 兩種寫法、可有可無的 `./`
+   前置詞、含空白路徑的引號形式，以及絕對路徑寫法；路徑會先經 `Regex.Escape` 處理，避免 `v1.2` 這類名稱中的 `.` 被當成萬用字元。
+4. 傳給 `go work use` 的是**相對路徑**。`go work use` 會原封不動記下你給的引數，因此若傳絕對路徑，就會把「這台機器專屬」且在 Windows
+   上以反斜線分隔的項目寫進一份通常要簽入版控的檔案；從 `go.work` 所在目錄以相對路徑執行，寫入的才是 go 自己慣用的 `./<path>` 形式。
 
-設計階段建置（`DesignTimeBuild=true`）不會執行此目標——Visual Studio 載入專案時不應該改寫 `go.work`。若某個模組是**刻意**排除在工作區之外的，在該 `.goproj` 中設定：
+設計階段建置（`DesignTimeBuild=true`）不會執行此目標——Visual Studio 載入專案時不應該改寫
+`go.work`。若某個模組是**刻意**排除在工作區之外的，在該 `.goproj` 中設定：
 
 ```xml
 <GoEnsureWorkspaceMembership>false</GoEnsureWorkspaceMembership>
@@ -182,16 +236,21 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 
 此指令碼會：
 
-1. 執行 `dotnet pack`，把 SDK 打包成 `.nupkg` 輸出到本機摘要來源 `./packages/`；
-2. 刪除 NuGet 全域快取中的舊版本（`%USERPROFILE%\.nuget\packages\orikago.sdk`），確保重新打包後的內容立即生效。
+1. 執行 `dotnet pack`，把 SDK 封裝成 `.nupkg` 輸出到本機摘要來源 `./packages/`；
+2. 刪除 NuGet 全域快取中的舊版本（`%USERPROFILE%\.nuget\packages\orikago.sdk`），確保重新封裝後的內容立即生效。
 
-`nuget.config` 已設定 `./packages` 為本機來源（另含 nuget.org），且 `.goproj` 直接以 `Sdk="Orikago.Sdk/0.1.0-preview"` 內嵌版本參照，不需要 `global.json`。
+`nuget.config` 已設定 `./packages` 為本機來源（另含 nuget.org），且 `.goproj` 直接以
+`Sdk="Orikago.Sdk/0.1.0-preview"` 內嵌版本參照，不需要 `global.json`。
 
 ## 誠實的限制（非目標）
 
-- **單靠 SDK，Visual Studio 不會有 Go 語言服務。** 沒有 VSIX 時，Visual Studio 只能載入 `.goproj` 專案、在方案總管顯示 `.go` 檔與 `go.mod`、執行真實的建置／清除／啟動。IntelliSense（透過 gopls）與 F5 偵錯（透過 delve）由 VSIX 提供，且需先安裝 `gopls` 與 `dlv`。
-- **偵錯尚未與 C# 同等。** 附加至處理序、反組譯與記憶體視窗、編輯後繼續、設定下一個陳述式、工作視窗與診斷工具目前都不可用；完整對照見 [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md)。
-- **IDE 整合屬實驗性質**（見開頭警告）：依賴沒有相容性承諾的 Visual Studio 內部機制，且只在 Visual Studio 2026（18.x）上實際跑過。Visual Studio 2022 17.14 安裝程式會接受，但未經測試。
+- **單靠 SDK，Visual Studio 不會有 Go 語言服務。** 沒有 VSIX 時，Visual Studio 只能載入 `.goproj` 專案、在方案總管顯示 `.go`
+  檔與 `go.mod`、執行真實的建置／清除／啟動。IntelliSense（透過 gopls）與
+  F5 偵錯（透過 delve）由 VSIX 提供，且需先安裝 `gopls` 與 `dlv`。
+- **偵錯尚未與 C# 同等。** 附加至處理序、反組譯碼與記憶體視窗、編輯後繼續、設定下一個陳述式、工作視窗與診斷工具目前都不可用；完整對照見
+  [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md)。
+- **IDE 整合屬實驗性質**（見開頭警告）：依賴沒有相容性承諾的 Visual Studio 內部機制，且只在 Visual Studio 2026（18.x）上實際跑過。Visual
+  Studio 2022 17.14 安裝程式會接受，但未經測試。
 
 ## 專案範本（dotnet new）
 
@@ -200,11 +259,14 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 | 短名稱 | 範本 | 說明 |
 |--------|------|------|
 | `go-console` | Orikago 主控台應用程式 | `.goproj` + `go.mod` + `main.go`，建置後產生可執行檔 |
-| `go-lib` | Orikago 類別庫 | `OutputType=Library`，`go build ./...` 只做編譯檢查；Go package 名稱為專案名稱的小寫 |
+| `go-lib` | Orikago 類別庫 | `OutputType=Library`，`go build ./...` 只做編譯檢查；Go 套件名稱為專案名稱的小寫 |
 
-依 Go 慣例（module 路徑與 package 名稱全小寫），兩個範本產出的 `go.mod` module 名稱與 `go-lib` 的 package 名稱都是**專案名稱的小寫形式**（`MyApp` → `module myapp`、`MyLib` → `package mylib`）；SDK 端 `GoEnsureMod` 的 `go mod init` 預設名稱同樣先轉小寫再淨化（`MyCased App` → `module mycased_app`）。`.goproj` 檔名與 `AssemblyName`（輸出的執行檔名）維持使用者輸入的大小寫。
+依 Go 慣例（模組路徑與套件名稱全小寫），兩個範本產出的 `go.mod` 模組名稱與 `go-lib` 的套件名稱都是**專案名稱的小寫形式**（`MyApp` →
+`module myapp`、`MyLib` → `package mylib`）；SDK 端 `GoEnsureMod` 的 `go mod init`
+預設名稱同樣先轉小寫再淨化（`MyCased App` → `module mycased_app`）。`.goproj` 檔名與
+`AssemblyName`（輸出的執行檔名）維持使用者輸入的大小寫。
 
-打包與安裝（於存放庫根目錄）：
+封裝與安裝（於存放庫根目錄）：
 
 ```powershell
 dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
@@ -217,24 +279,29 @@ dotnet new install Orikago.Templates::0.1.0-preview
 # 建立主控台專案（--langVersion 對應 go.mod 的 go 指示詞與 <LangVersion>，預設 1.21）
 dotnet new go-console -n MyTool -o MyTool --langVersion 1.22
 dotnet build MyTool/MyTool.goproj
-dotnet run --project MyTool/MyTool.goproj      # => Hello, World!
+# 輸出：Hello, World!
+dotnet run --project MyTool/MyTool.goproj
 
-# 建立類別庫（package 名稱 = 專案名稱小寫，例如 MyLib => package mylib）
+# 建立類別庫（套件名稱 = 專案名稱小寫，例如 MyLib => package mylib）
 dotnet new go-lib -n MyLib -o MyLib
 ```
 
 注意事項：
 
-- 產生的專案以 `Sdk="Orikago.Sdk/0.1.0-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages` 本機摘要來源**（在本存放庫底下建立專案即可；在其他位置請於專案旁放一份指向該摘要來源的 `nuget.config`）。
-- 專案名稱小寫後若不是合法的 Go 識別項（含連字號、空白、開頭為數字），`go-lib` 產生的 package／module 名稱會無效；範本引擎不會代為淨化。
+- 產生的專案以 `Sdk="Orikago.Sdk/0.1.0-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages`
+  本機摘要來源**（在本存放庫底下建立專案即可；在其他位置請於專案旁放一份指向該摘要來源的 `nuget.config`）。
+- 專案名稱小寫後若不是合法的 Go 識別項（含連字號、空白、開頭為數字），`go-lib` 產生的套件／模組名稱會無效；範本引擎不會代為淨化。
 - 修改範本後重新安裝前，請先 `dotnet new uninstall Orikago.Templates` 或調高 `PackageVersion`。
 
 ## 編譯器平台 API（Orikago.CodeAnalysis）
 
 `src/csharp/Orikago.CodeAnalysis` + `src/go/orikagoc` 提供仿 Roslyn 形狀的 Go 編譯器平台：
 
-- **`src/go/orikagoc/`** — Go 邊車（sidecar）CLI，本身就是一個 `.goproj`（自我實踐 Orikago.Sdk）。以 `go/parser`、`go/types` 實作 `parse` / `check` / `symbol` 三類命令，全部輸出 JSON；即使原始碼有錯誤也回傳結束代碼 0（僅基礎設施錯誤回傳非零）。
-- **`src/csharp/Orikago.CodeAnalysis/`** — net10.0 類別庫，透過邊車提供 `GoSyntaxTree`（語法樹）、`GoCompilation`（診斷與 `Emit`，實際執行 `go build -o`）、`GoSemanticModel`（語意查詢）。
+- **`src/go/orikagoc/`** — Go 邊車（sidecar）CLI，本身就是一個 `.goproj`（自我實踐 Orikago.Sdk）。以
+  `go/parser`、`go/types` 實作 `parse`／`check`／`symbol` 三類命令，全部輸出 JSON；即使原始碼有錯誤也傳回結束代碼
+  0（僅基礎設施錯誤傳回非零）。
+- **`src/csharp/Orikago.CodeAnalysis/`** — net10.0 類別庫，透過邊車提供
+  `GoSyntaxTree`（語法樹）、`GoCompilation`（診斷與 `Emit`，實際執行 `go build -o`）、`GoSemanticModel`（語意查詢）。
 - **`test/csharp/Orikago.CodeAnalysis.Tests/`** — xUnit 測試（`dotnet test`；26 項全數通過）。
 
 邊車的尋找順序：明確路徑引數 > `ORIKAGO_GOC` 環境變數 > 與 `Orikago.CodeAnalysis` 組件相鄰 > `PATH`。先建置邊車並設定環境變數即可：
@@ -252,65 +319,121 @@ using Orikago.CodeAnalysis;
 
 // 語法樹：解析原始碼字串（也可用 GoSyntaxTree.ParseFile(path)）
 var tree = GoSyntaxTree.ParseText("package main\n\nfunc main() {\n\tprintln(1)\n}\n");
-var funcDecl = tree.Root!.FirstChild("FuncDecl");
-Console.WriteLine(funcDecl!.FirstChild("Ident")!.Text);        // main
+
+if (tree.Root?.FirstChild("FuncDecl")?.FirstChild("Ident") is { } identifier)
+{
+    // 輸出：main
+    Console.WriteLine(identifier.Text);
+}
 
 // 編譯：整個 Go 模組的診斷、語意查詢與真實建置
 var compilation = GoCompilation.Create(@"D:\path\to\module");
-foreach (var d in compilation.GetDiagnostics())                 // GOPARSE / GOTYPE
-    Console.WriteLine(d);
+
+foreach (var diagnostic in compilation.GetDiagnostics())
+{
+    // 每筆診斷的代碼為 GOPARSE 或 GOTYPE
+    Console.WriteLine(diagnostic);
+}
 
 var model = compilation.GetSemanticModel();
 var symbol = model.GetSymbolAt(@"D:\path\to\module\main.go", 4, 2);
-Console.WriteLine(symbol);                                      // 例如 "var x: int"
+
+// 輸出例如 "var x: int"
+Console.WriteLine(symbol);
 
 // Emit = 真正的 go build -o（可交叉編譯）
-var result = compilation.Emit(@"D:\out\tool-linux",
-    new GoEmitOptions { OS = "linux", Arch = "arm64", TrimPath = true });
+var result = compilation.Emit(
+    outputPath: @"D:\out\tool-linux",
+    options: new GoEmitOptions
+    {
+        OS = "linux",
+        Arch = "arm64",
+        TrimPath = true,
+    });
 Console.WriteLine(result.Success);
 ```
 
-診斷代碼：`GOPARSE`（語法錯誤）、`GOTYPE`（型別檢查錯誤）、`GOBUILD`（`go build` 失敗）。位置皆為 1-based 行／欄；**欄號的單位是 UTF-16 字碼單位**（詳見下方「編譯器平台的正確性修正」）。
+診斷代碼：`GOPARSE`（語法錯誤）、`GOTYPE`（型別檢查錯誤）、`GOBUILD`（`go build` 失敗）。位置皆為從 1 起算的行／欄；**欄號的單位是 UTF-16
+字碼單位**（詳見下方「編譯器平台的正確性修正」）。
 
 ## F5 偵錯（delve 整合）
 
-`.goproj` 專案按 **F5** 即以 [delve](https://github.com/go-delve/delve) 偵錯:中斷點、逐步執行（F10/F11）、區域變數、呼叫堆疊與 goroutine 都由 DAP 供應。**Ctrl+F5**（啟動但不偵錯）直接執行建置產物,不經 delve。
+`.goproj` 專案按 **F5** 即以 [delve](https://github.com/go-delve/delve)
+偵錯：中斷點、逐步執行（F10/F11）、區域變數、呼叫堆疊與 goroutine 都由 DAP 供應。**Ctrl+F5**（啟動但不偵錯）直接執行建置成品，不經 delve。
 
-架構（與 VS 內建的 CMake 偵錯同一套機制）:
+架構（與 VS 內建的 CMake 偵錯同一套機制）：
 
-- **launch 端**:`GoDebugLaunchProvider` 在 F5 時啟動 `dlv dap --listen=127.0.0.1:0`,查出它實際綁定的 port,組出 launch 設定（`mode:"exec"`、program=`GoOutputPath`、args=`StartArguments` 拆陣列、cwd=專案目錄）。**它同時匯出兩個介面**:managed 專案系統的 `LaunchProfiles` 子系統擁有 F5 的底層設施(移除該 capability 會讓 `Debug.Start` 整個消失——實測),而其管線只諮詢 `IDebugProfileLaunchTargetsProvider`(依 `[Order]` 挑選、`SupportsProfile` 把關),plain 的 `IDebugLaunchProvider` 永遠不會被問——所以 provider 兩者都實作,前者才是實際被走到的路徑。該介面沒有可用的 NuGet 套件,從 VS 安裝目錄直接參考 `Microsoft.VisualStudio.ProjectSystem.Managed.VS.dll`(`Private=false`)。
-- **engine 端**:`goproj.pkgdef` 於 `AD7Metrics\Engine` 註冊 Go engine,`CLSID` 指向 VS **Debug Adapter Host** 的固定實作;launch 設定中的 `$debugServer` 讓 host 直接連 dlv 的 TCP port——**不設 `"Adapter"`**,因為 `dlv dap` 只支援 TCP、不支援 stdio,由 host spawn 會在握手時卡死。
-- **除錯資訊**:Debug 組態本來就以 `-gcflags "all=-N -l"` 編譯（見「支援的屬性」),符號與區域變數完整,SDK 端無須任何改動。
-- **dlv 探測**:與 gopls 同一套 `GoToolLocator`（PATH → GOBIN/GOPATH\bin 含 `go env -w` 持久值 → `%USERPROFILE%\go\bin`);找不到時錯誤訊息給出 `go install github.com/go-delve/delve/cmd/dlv@latest`。
-- **生命週期**:dlv dap 是單一會話伺服器,session 結束自動退出;連線失敗殘留的伺服器會在下一次 F5 前被回收。
-- **主控台**:dlv 以**可見主控台**啟動（debuggee 繼承它,`fmt.Println`／`fmt.Scan` 都在那個視窗）,因此沒有管線可以讀出 port。做法是讓 dlv 自己綁 `:0`,再從 OS listener 表**以 dlv 自己的 process id 過濾**把 port 讀回來（`GetExtendedTcpTable`,見 `TcpListenerTable.cs`）,這同時就是就緒檢查。若改成事先挑好 port（bind :0、讀回、釋放、再交給 dlv）,中間會有一段空窗讓別的行程搶走它,而只問「有沒有人在監聽」的就緒檢查會把 session 交給那個別的服務。也不能用 TCP 試連——dlv dap 只接受單一 client,試連會吃掉 session。session 結束時主控台隨 dlv 關閉。
+- **啟動端**：`GoDebugLaunchProvider` 在 F5 時啟動 `dlv dap
+  --listen=127.0.0.1:0`，查出它實際繫結的連接埠，組出啟動設定（`mode:"exec"`、program=`GoOutputPath`、args=`StartArguments`
+  拆陣列、cwd=專案目錄）。**它同時匯出兩個介面**：受控專案系統的 `LaunchProfiles` 子系統擁有 F5 的底層設施（移除該專案能力會讓 `Debug.Start`
+  整個消失——實測），而其管道只諮詢 `IDebugProfileLaunchTargetsProvider`（依 `[Order]` 挑選、`SupportsProfile`
+  把關），單純的 `IDebugLaunchProvider` 永遠不會被問到——所以提供者兩者都實作，前者才是實際被走到的路徑。該介面沒有可用的 NuGet 套件，從 VS
+  安裝目錄直接參考 `Microsoft.VisualStudio.ProjectSystem.Managed.VS.dll`（`Private=false`）。
+- **引擎端**：`goproj.pkgdef` 於 `AD7Metrics\Engine` 註冊 Go 引擎，`CLSID` 指向 VS **Debug Adapter Host**
+  的固定實作；啟動設定中的 `$debugServer` 讓 DAH 直接連線到 dlv 的 TCP 連接埠——**不設 `"Adapter"`**，因為 `dlv dap` 只支援
+  TCP、不支援 stdio，由 DAH 自行啟動它會在交握時卡死。
+- **偵錯資訊**：Debug 組態本來就以 `-gcflags "all=-N -l"` 編譯（見「支援的屬性」），符號與區域變數完整，SDK 端無須任何改動。
+- **dlv 探查**：與 gopls 同一套 `GoToolLocator`（PATH → GOBIN/GOPATH\bin 含 `go env -w` 持久值 →
+  `%USERPROFILE%\go\bin`）；找不到時錯誤訊息給出 `go install github.com/go-delve/delve/cmd/dlv@latest`。
+- **生命週期**：dlv dap 是單一工作階段的伺服器，工作階段結束即自動退出；連線失敗殘留的伺服器會在下一次 F5 前被回收。
+- **主控台**：dlv 以**可見主控台**啟動（偵錯項目繼承它，`fmt.Println`／`fmt.Scan` 都在那個視窗），因此沒有管道可以讀出連接埠。做法是讓 dlv 自己繫結
+  `:0`，再從 OS 接聽程式表**以 dlv 自己的處理序識別碼篩選**把連接埠讀回來（`GetExtendedTcpTable`，見
+  `TcpListenerTable.cs`），這同時就是就緒檢查。若改成事先挑好連接埠（繫結 :0、讀回、釋放、再交給
+  dlv），中間會有一段空窗讓別的處理序搶走它，而只問「有沒有人在接聽」的就緒檢查會把工作階段交給那個別的服務。也不能用 TCP 試連——dlv dap
+  只接受單一用戶端，試連會吃掉工作階段。工作階段結束時主控台隨 dlv 關閉。
 
-**P0 快贏批次已實作**(詳細規劃見 `docs/debug-parity-plan.md`):
+**P0 快贏批次已實作**（詳細規劃見 `docs/debug-parity-plan.md`）：
 
-- **例外設定**:`Exceptions=1` + `Go Exceptions` 分類註冊(項目名對齊 dlv 的 filter label:`Unrecovered Panics`/`Fatal Throws`,以 DAP initialize 實測值為準);**未接住的 panic 會讓偵錯器停在 panic 點**(實測:輸出停在 panic 前一步、VS 進入中斷模式)
-- **條件中斷點**:`ConditionalBP=1`,協定記錄實證 `"condition"` 傳達 dlv 且命中
-- **函式中斷點**:`FunctionBP=1`,`setFunctionBreakpoints` 通道實證可用
-- **命中次數中斷點**:`HitCountBP=1` + `HitCountBreakpointExpressions`(`== {0}`/`>= {0}`/`% {0}` 對映 dlv 的 hitCondition)
-- **反組譯/呼叫堆疊中斷點**:`AddressBP=1`/`CallStackBP=1`(dlv `supportsInstructionBreakpoints`)
-- **goroutine 降噪**:launch 設定 `hideSystemGoroutines:true`
-- **delve 版本**:升級至 1.27.0(解鎖 exceptionBreakpointFilters、hitCondition capability、記憶體讀寫);dlv 以 `--check-go-version=false` 啟動——delve 只「支援」最近兩個 Go 版本,否則舊工具鏈建置的二進位會被硬拒(modal 錯誤)
-- **Go 工具鏈**:以 `go env -w GOTOOLCHAIN=go1.25.12+auto` 切至 1.25(官方機制,免重裝;二進位由 1.25 建置後 delve 的版本 WARNING 消失)。連帶處理:`orikagoc` 的 `x/tools` 升至 v0.48.0(v0.24 在 go1.25 下編譯失敗——token 內部布局改變)、gopls 升至新版(0.14.2 與 1.25 不匹配)、**工具鏈版本納入增量建置輸入**(`go version` 寫入 `go.build.args`,否則 GOTOOLCHAIN 切換後會靜默沿用舊工具鏈建置的二進位)。compiler 測試 26/26 於 1.25 下全數通過
+- **例外設定**：`Exceptions=1` + `Go Exceptions` 分類註冊（項目名對齊 dlv
+  的篩選條件標籤：`Unrecovered Panics`／`Fatal Throws`，以 DAP initialize 實測值為準）；**未接住的 panic 會讓偵錯工具停在
+  panic 點**（實測：輸出停在 panic 前一步、VS 進入中斷模式）
+- **條件中斷點**：`ConditionalBP=1`，協定記錄實證 `"condition"` 傳達 dlv 且被叫用
+- **函式中斷點**：`FunctionBP=1`，`setFunctionBreakpoints` 通道實證可用
+- **叫用次數中斷點**：`HitCountBP=1` + `HitCountBreakpointExpressions`（`== {0}`／`>= {0}`／`% {0}` 對映 dlv
+  的 hitCondition）
+- **反組譯碼／呼叫堆疊中斷點**：`AddressBP=1`／`CallStackBP=1`（dlv `supportsInstructionBreakpoints`）
+- **goroutine 降噪**：啟動設定 `hideSystemGoroutines:true`
+- **delve 版本**：升級至 1.27.0（解鎖 exceptionBreakpointFilters、hitCondition 功能、記憶體讀寫）；dlv 以
+  `--check-go-version=false` 啟動——delve 只「支援」最近兩個 Go 版本，否則舊工具鏈建置的二進位會被硬拒（跳出強制回應的錯誤對話方塊）
+- **Go 工具鏈**：以 `go env -w GOTOOLCHAIN=go1.25.12+auto` 切至 1.25（官方機制，免重裝；二進位由 1.25 建置後 delve 的版本
+  WARNING 消失）。連帶處理：`orikagoc` 的 `x/tools` 升至 v0.48.0（v0.24 在 go1.25 下編譯失敗——go/token
+  內部布局改變）、gopls 升至新版（0.14.2 與 1.25 不匹配）、**工具鏈版本納入增量建置輸入**（`go version` 寫入 `go.build.args`，否則
+  GOTOOLCHAIN 切換後會靜默沿用舊工具鏈建置的二進位）。編譯器測試 26/26 於 1.25 下全數通過
 
-**反組譯視窗**可用(dlv 的 `disassemble` 回傳真實 Go 組語,`AddressBP=1` 可在其中下中斷點)。
+**反組譯碼視窗**可用（dlv 的 `disassemble` 傳回真實的 Go 組合語言，`AddressBP=1` 可在其中下中斷點）。
 
-**記憶體讀取與 `DelveProxy`**:VS 在**每次中斷**都會用當下的指令指標位址送一個 `readMemory`(`count=0`)例行探測,但 delve 的 `readMemory` 只接受**它自己發出過**的參考(`referencesCollection`,而 `isAddressable()` 只涵蓋 string 與 slice),因此原始位址一律被拒,使用者每次命中中斷點都會看到 `Unable to read memory: unknown memoryReference`。engine metric `MemoryReferencesAreAddresses=0` 擋不住這個探測(實測)。
+**記憶體讀取與 `DelveProxy`**：VS 在**每次中斷**都會用當下的指令指標位址送一個 `readMemory`（`count=0`）例行探查，但 delve 的
+`readMemory` 只接受**它自己發出過**的參考（`referencesCollection`，而 `isAddressable()`
+只涵蓋字串與切片），因此原始位址一律被拒，使用者每次叫用中斷點都會看到 `Unable to read memory: unknown memoryReference`。引擎計量
+`MemoryReferencesAreAddresses=0` 擋不住這個探查（實測）。
 
-因此 SDK 在 DAH 與 dlv 之間插入一層極薄的 DAP relay(`DelveProxy`):雙向逐位元組轉發,**唯一**的改動是把「`readMemory` 失敗且訊息為 unknown memoryReference」改寫成 delve 自己對合法零長度讀取所回的成功空回應。實測:探測回 `success:true`、session 的 ERROR 由 5 降為 0。真實的記憶體讀取(對 string／slice 變數右鍵→檢視記憶體,使用 delve 自己給的參考)仍原封不動交給 delve;手動輸入任意位址則會安靜地得到空結果而非錯誤(delve 不支援,詳見 `docs/debug-parity-plan.md`)。
+因此 SDK 在 DAH 與 dlv 之間插入一層極薄的 DAP 轉送層（`DelveProxy`）：雙向逐位元組轉發，**唯一**的改動是把「`readMemory` 失敗且訊息為
+unknown memoryReference」改寫成 delve 自己對合法零長度讀取所回的成功空回應。實測：探查回 `success:true`、工作階段的 ERROR 由 5 降為
+0。真實的記憶體讀取（對字串／切片變數按右鍵→檢視記憶體，使用 delve 自己給的參考）仍原封不動交給 delve；手動輸入任意位址則會安靜地得到空結果而非錯誤（delve 不支援，詳見
+`docs/debug-parity-plan.md`）。
 
-**附加至處理序**可用:偵錯 → 附加至處理序 → 選擇 Go 程式後,程式碼類型選「Go Debugger (Delve)」。`GoProgramProvider` 會掃描目標執行檔的 Go build-info 標記,只對真正的 Go 行程提供這個選項。卸離後目標程式繼續執行。
+**附加至處理序**可用：偵錯 → 附加至處理序 → 選擇 Go 程式後，程式碼類型選「Go Debugger (Delve)」。`GoProgramProvider` 會掃描目標執行檔的
+Go build-info 標記，只對真正的 Go 處理序提供這個選項。中斷連結後目標程式繼續執行。
 
-已知限制:`SetNextStatement`(拖移黃箭頭)關閉——delve 任何版本都未實作 DAP 的 `goto`,詳見規劃文件專節;`ExceptionConditions`(依模組略過例外)同因 delve 未支援而關閉。
+已知限制：`SetNextStatement`（拖移黃箭頭）關閉——delve 任何版本都未實作 DAP 的
+`goto`，詳見規劃文件專節；`ExceptionConditions`（依模組略過例外）同因 delve 未支援而關閉。
 
-端對端驗證(DTE 自動化,DAP 協定記錄佐證):`main.go` 設中斷點 → F5 → dlv 啟動、`setBreakpoints` 成功、`stopped(reason=breakpoint)` 實際命中;區域變數(含 `chan string 2/3` 這種 Go 原生型別)、呼叫堆疊(`main.main → runtime.main`)、goroutine 清單(`[Go 1..n]`)全部可見;改 `StartArguments` 重跑,於中斷點求值 `os.Args` 確認新參數 `["gamma","delta","epsilon"]` 生效;繼續執行至正常結束。另一個踩坑記錄(命令不出現的三連環,全中才會好):(1) VSCT 編譯後必須靠 `VSPackage.resx` 的 `MergeWithCTO=true` 才會嵌進組件資源(`Menus.ctmenu`);(2) 套件註冊必須 `RegisterWithCodebase=true`——預設只寫組件顯示名稱(`PublicKeyToken=null`),非 GAC 的擴充組件無從解析,shell 載不了套件、CTMENU 合併靜默讀到空;(3) shell 依 `Menus` 版本號快取合併結果,修好資源後必須把 `ProvideMenuResource` 版本 +1(或跑 `devenv /updateconfiguration`,`install-vsix.ps1` 現在每次安裝後都會跑)。驗證:`DTE.Commands.Item` 確認命令進入命令表,名稱 `ProjectandSolutionContextMenus.Project.加入Go模組參考`。
+端對端驗證（DTE 自動化，DAP 協定記錄佐證）：`main.go` 設中斷點 → F5 → dlv 啟動、`setBreakpoints`
+成功、`stopped(reason=breakpoint)` 實際觸發；區域變數（含 `chan string 2/3` 這種 Go
+原生型別）、呼叫堆疊（`main.main → runtime.main`）、goroutine 清單（`[Go 1..n]`）全部可見；改 `StartArguments`
+重跑，於中斷點求值 `os.Args` 確認新參數 `["gamma","delta","epsilon"]`
+生效；繼續執行至正常結束。另一個踩坑記錄（命令不出現的三連環，全中才會好）：（1）VSCT 編譯後必須靠 `VSPackage.resx` 的 `MergeWithCTO=true`
+才會嵌進組件資源（`Menus.ctmenu`）；（2）套件註冊必須
+`RegisterWithCodebase=true`——預設只寫組件顯示名稱（`PublicKeyToken=null`），非 GAC 的擴充組件無從解析，殼層載不了套件、CTMENU
+合併靜默讀到空；（3）殼層依 `Menus` 版本號快取合併結果，修好資源後必須把 `ProvideMenuResource` 版本 +1（或跑
+`devenv /updateconfiguration`，`install-vsix.ps1` 現在每次安裝後都會跑）。驗證：`DTE.Commands.Item` 確認命令進入命令表，名稱
+`ProjectandSolutionContextMenus.Project.加入Go模組參考`。
 
 ## gopls 在 .go 檔案上的啟用（LSP 內容類型接線）
 
-VSIX 內的 `GoLanguageClient`（`ILanguageClient`，負責啟動 `gopls serve`）先前掛在 `[ContentType("go")]` 上，但**沒有任何組件匯出名為 `go` 的內容類型**，因此 Visual Studio 永遠不會呼叫 `ActivateAsync`，gopls 也從未被啟動。整個編輯／導覽／重構／診斷功能都卡在這一個缺口上。
+VSIX 內的 `GoLanguageClient`（`ILanguageClient`，負責啟動 `gopls serve`）先前掛在 `[ContentType("go")]`
+上，但**沒有任何組件匯出名為 `go` 的內容類型**，因此 Visual Studio 永遠不會呼叫 `ActivateAsync`，gopls
+也從未被啟動。整個編輯／導覽／重構／診斷功能都卡在這一個缺口上。
 
 `src/csharp/Orikago.LanguageService/GoContentTypeDefinitions.cs` 現在真正匯出內容類型與副檔名對應：
 
@@ -319,26 +442,42 @@ public const string ContentTypeName = "Orikago";
 
 [Export(typeof(ContentTypeDefinition))]
 [Name(ContentTypeName)]
-[BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]  // "code-languageserver-preview"
-internal static ContentTypeDefinition GoContentType;
+// CodeRemoteContentTypeName 的值是 "code-languageserver-preview"
+[BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]
+internal static ContentTypeDefinition? GoContentType;
 
 [Export(typeof(FileExtensionToContentTypeDefinition))]
 [ContentType(ContentTypeName)]
 [FileExtension(".go")]
-internal static FileExtensionToContentTypeDefinition GoFileExtension;
+internal static FileExtensionToContentTypeDefinition? GoFileExtension;
 ```
 
-為什麼是這個基底？（以下皆為實際反組譯 VS 18.5 組件中繼資料所得）
+為什麼是這個基底？（以下皆為實際反向組譯 VS 18.5 組件中繼資料所得）
 
-- `Microsoft.VisualStudio.LanguageServer.Client.dll` 中的 `CodeRemoteContentDefinition` 宣告 `code-languageserver-preview` → `code-languageserver-base` → `languageserver-base`。而 `Microsoft.VisualStudio.LanguageServer.Client.Implementation.dll` 正是以 `languageserver-base` 作為所有啟用進入點的判斷條件，**衍生自它才會被呼叫 `ActivateAsync`**。
-- `code-languageserver-preview` 同時衍生自 `code-languageserver-textmate-color`／`-structure`／`-brace`／`-indentation` 與 `code-textmate-commentselection`。`Microsoft.VisualStudio.LanguageServices.LanguageExtension.VSCore.dll` 會為這類緩衝區依文件副檔名解析 TextMate 文法，因此 VS 內建的 Go 文法（`Common7\IDE\CommonExtensions\Microsoft\TextMate\Starterkit\Extensions\go\syntaxes\go.json`，`scopeName: source.go`、`fileTypes: ["go"]`）仍會為 `.go` 上色。一次修好啟用與著色。
-- 名稱刻意不叫 `go`：VS 的 TextMate 內容類型是以程式碼註冊為 `code++` 與 `code++.<文法名稱>`（純 `.go` 緩衝區的類型是 `code++.Go`），VS 18 中並不存在名為 `go` 的內容類型；改用 `Orikago` 也避免與未來的內建名稱衝突。
+- `Microsoft.VisualStudio.LanguageServer.Client.dll` 中的 `CodeRemoteContentDefinition` 宣告
+  `code-languageserver-preview` → `code-languageserver-base` → `languageserver-base`。而
+  `Microsoft.VisualStudio.LanguageServer.Client.Implementation.dll` 正是以 `languageserver-base`
+  作為所有啟用進入點的判斷條件，**衍生自它才會被呼叫 `ActivateAsync`**。
+- `code-languageserver-preview` 同時衍生自
+  `code-languageserver-textmate-color`／`-structure`／`-brace`／`-indentation` 與
+  `code-textmate-commentselection`。`Microsoft.VisualStudio.LanguageServices.LanguageExtension.VSCore.dll`
+  會為這類緩衝區依文件副檔名解析 TextMate 文法，因此 VS 內建的 Go
+  文法（`Common7\IDE\CommonExtensions\Microsoft\TextMate\Starterkit\Extensions\go\syntaxes\go.json`，`scopeName:
+  source.go`、`fileTypes: ["go"]`）仍會為 `.go` 上色。一次修好啟用與著色。
+- 名稱刻意不叫 `go`：VS 的 TextMate 內容類型是以程式碼註冊為 `code++` 與 `code++.<文法名稱>`（純 `.go` 緩衝區的類型是
+  `code++.Go`），VS 18 中並不存在名為 `go` 的內容類型；改用 `Orikago` 也避免與未來的內建名稱衝突。
 
-`GoLanguageClient` 本身不需修改（它讀的就是這個常數）。更新 VSIX 後需**重新啟動 Visual Studio**（MEF 快取須重建）。若 gopls 未啟動，請確認 `gopls.exe` 在 `PATH`、`GOBIN`、`GOPATH\bin`（含 `go env -w` 持久化的值）或 `%USERPROFILE%\go\bin`：`go install golang.org/x/tools/gopls@latest`。
+`GoLanguageClient` 本身不需修改（它讀的就是這個常數）。更新 VSIX 後需**重新啟動 Visual Studio**（MEF 快取須重建）。若 gopls 未啟動，請確認
+`gopls.exe` 在 `PATH`、`GOBIN`、`GOPATH\bin`（含 `go env -w` 持久化的值）或
+`%USERPROFILE%\go\bin`：`go install golang.org/x/tools/gopls@latest`。
 
 ## gopls 伺服器設定與外部檔案變更感知（InitializationOptions / FilesToWatch）
 
-gopls 啟動後，`GoLanguageClient` 的三個屬性原本都是 `null`。以 gopls v0.14.2 的預設值來說，這代表**語意著色、七種 inlay hint、staticcheck 與所有分析器開關全部關閉**。現在改為在 `initialize` 這一次就把設定全部推給伺服器：`ConfigurationSections` 維持 `null`（本用戶端不使用 `workspace/didChangeConfiguration`），所有設定一律走 `InitializationOptions`，因此 gopls 在 `initialize` 回傳時就已完成設定，不依賴啟動後的設定往返。
+gopls 啟動後，`GoLanguageClient` 的三個屬性原本都是 `null`。以 gopls v0.14.2
+的預設值來說，這代表**語意著色、七種內嵌提示、staticcheck 與所有分析器開關全部關閉**。現在改為在 `initialize`
+這一次就把設定全部推給伺服器：`ConfigurationSections` 維持 `null`（本用戶端不使用
+`workspace/didChangeConfiguration`），所有設定一律走 `InitializationOptions`，因此 gopls 在 `initialize`
+傳回時就已完成設定，不依賴啟動後的設定往返。
 
 ### InitializationOptions：扁平結構，且鍵名必須存在
 
@@ -349,7 +488,8 @@ split := strings.Split(name, ".")
 name = split[len(split)-1]
 ```
 
-所以 gopls 文件裡的 `ui.*` / `build.*` 前置詞只是**文件上的分組，不是傳輸格式**；線路上送的是扁平物件。另一個關鍵是**未知鍵不會被忽略**——它會走到 `default: result.unexpected()`，產生 Error 等級的 `window/showMessage`：
+所以 gopls 文件裡的 `ui.*`／`build.*` 前置詞只是**文件上的分組，不是傳輸格式**；線路上送的是扁平物件。另一個關鍵是**未知鍵不會被忽略**——它會走到
+`default: result.unexpected()`，產生 Error 等級的 `window/showMessage`：
 
 ```
 Invalid settings: unexpected gopls setting "..."
@@ -361,93 +501,137 @@ Invalid settings: unexpected gopls setting "..."
 |------|-----|------|
 | `semanticTokens` | `true` | 不開啟時 gopls 對 `textDocument/semanticTokens/full` 直接回 `semantictokens are disabled` |
 | `staticcheck` | `true` | 在預設 vet 類分析器之上加上 staticcheck 的 SA/S/ST 檢查 |
-| `usePlaceholders` | `true` | 補全函式時把參數插成可跳躍的預留位置 |
-| `gofumpt` | `false` | gofumpt 比 gofmt 嚴格且會改寫程式碼，維持 opt-in |
-| `hints` | 七種全開 | gopls 預設是空 map，等同完全關閉 inlay hint |
+| `usePlaceholders` | `true` | 自動完成函式時把參數插成可跳躍的預留位置 |
+| `gofumpt` | `false` | gofumpt 比 gofmt 嚴格且會改寫程式碼，維持選擇性啟用 |
+| `hints` | 七種全開 | gopls 預設是空的對應表，等同完全關閉內嵌提示 |
 | `analyses` | `unusedparams=true`、`shadow=false` | `shadow` 雜訊偏高，明確寫出預設值表示是刻意不開 |
 | `directoryFilters` | 排除 `node_modules`／`bin`／`obj` | gopls 預設只排除 `node_modules` |
-| `buildFlags` / `env` | 空 | 保留給 `GoFlags`／建置標籤的接點 |
+| `buildFlags`／`env` | 空 | 保留給 `GoFlags`／建置標籤的接點 |
 
 ### FilesToWatch：外部改動的唯一通道
 
-`FilesToWatch` 原本為 `null`，且註解宣稱「gopls 會自己註冊監看」。實際上有一整類改動是編輯器從未經手的：SDK 的 `GoEnsureMod` 會執行 `go mod init`／`go mod edit -go=<LangVersion>`，`GoEnsureWorkspace` 會執行 `go work use`（兩者都有等冪性防護，只在檔案確實需要改變時才動手——但調整 `LangVersion` 或新增專案就會在建置過程中改寫 `go.mod`／`go.work`）；`go build` 會更新 `go.sum`；從終端機執行的 `go get`／`go mod tidy` 則會改動 `go.mod`、`go.sum` 與 `.go` 檔。這些檔案沒有被開啟過，gopls 只能靠 `workspace/didChangeWatchedFiles` 得知。現在監看：
+`FilesToWatch` 原本為 `null`，且註解宣稱「gopls 會自己註冊監看」。實際上有一整類改動是編輯器從未經手的：SDK 的 `GoEnsureMod` 會執行
+`go mod init`／`go mod edit -go=<LangVersion>`，`GoEnsureWorkspace` 會執行
+`go work use`（兩者都有等冪性防護，只在檔案確實需要改變時才動手——但調整 `LangVersion` 或新增專案就會在建置過程中改寫
+`go.mod`／`go.work`）；`go build` 會更新 `go.sum`；從終端機執行的 `go get`／`go mod tidy` 則會改動
+`go.mod`、`go.sum` 與 `.go` 檔。這些檔案沒有被開啟過，gopls 只能靠 `workspace/didChangeWatchedFiles` 得知。現在監看：
 
 ```csharp
-public IEnumerable<string> FilesToWatch => new[]
+public IEnumerable<string> FilesToWatch
 {
-    "**/*.go", "**/go.mod", "**/go.sum", "**/go.work",
-};
+    get
+    {
+        return [
+            "**/*.go",
+            "**/go.mod",
+            "**/go.sum",
+            "**/go.work"
+        ];
+    }
+}
 ```
 
 ### RPC 追蹤（預設關閉）
 
-`gopls serve` 的引數改由 `BuildGoplsArguments()` 決定。RPC 追蹤很吵且影響吞吐量，因此是 opt-in：啟動 Visual Studio 前把環境變數 `ORIKAGO_GOPLS_RPCTRACE` 設為 `1`／`true`／`yes`／`on`，才會加上 `-rpc.trace`；未設定或無法辨識的值一律關閉。
+`gopls serve` 的引數改由 `BuildGoplsArguments()` 決定。RPC 追蹤很吵且影響輸送量，因此需選擇性啟用：啟動 Visual Studio 前把環境變數
+`ORIKAGO_GOPLS_RPCTRACE` 設為 `1`／`true`／`yes`／`on`，才會加上 `-rpc.trace`；未設定或無法辨識的值一律關閉。
 
 ### 驗證
 
-以一支 LSP 探針（真的啟動 `gopls serve`，走完 `initialize` → `initialized` → `didOpen`，再發出真正的請求）對同一份 Go 原始碼比較兩組設定，**設定 JSON 是用反射從編譯後的 `Orikago.LanguageService.dll` 取出的**，不是手抄的副本：
+以一支 LSP 探查工具（真的啟動 `gopls serve`，走完 `initialize` → `initialized` → `didOpen`，再發出真正的要求）對同一份 Go
+原始碼比較兩組設定，**設定 JSON 是用反射從編譯後的 `Orikago.LanguageService.dll` 取出的**，不是手抄的副本：
 
-| 請求 | `initializationOptions = {}`（修改前） | 本次設定 |
+| 要求 | `initializationOptions = {}`（修改前） | 本次設定 |
 |------|--------------------------------------|----------|
-| `textDocument/semanticTokens/full` | 伺服器錯誤 `semantictokens are disabled` | 45 個語意 token |
+| `textDocument/semanticTokens/full` | 伺服器錯誤 `semantictokens are disabled` | 45 個語意語彙基元 |
 | `textDocument/inlayHint` | 0 筆 | 5 筆（型別與參數名稱） |
 | `textDocument/publishDiagnostics` | 無 | `S1002`（staticcheck）＋ `unusedparams` |
 | 被拒絕的設定 | — | 0 筆（對照組：故意送出不存在的鍵確實會觸發 Error 訊息） |
 
-外部檔案感知也實測過：在磁碟上新建一個**從未 `didOpen`** 的 `.go` 檔（內容與既有函式重複），只送出 `workspace/didChangeWatchedFiles`，gopls 隨即回報 `helper redeclared in this block`——證明這條通道確實會讓伺服器看見編輯器外的改動。
+外部檔案感知也實測過：在磁碟上新建一個**從未 `didOpen`** 的 `.go` 檔（內容與既有函式重複），只送出
+`workspace/didChangeWatchedFiles`，gopls 隨即回報
+`helper redeclared in this block`——證明這條通道確實會讓伺服器看見編輯器外的改動。
 
-> **只能在 IDE 內目視確認的部分**：上述驗證證明的是「gopls 收到這些設定後行為確實改變」，以及「gopls 會對 `didChangeWatchedFiles` 作出反應」。至於 **Visual Studio 是否真的依 `FilesToWatch` 的 glob 送出該通知**，以及語意色彩與 inlay hint 在 `.go` 編輯器中的實際呈現，屬於 VS UI 行為，無法在無介面環境下證明。
+> **只能在 IDE 內目視確認的部分**：上述驗證證明的是「gopls 收到這些設定後行為確實改變」，以及「gopls 會對 `didChangeWatchedFiles`
+> 作出反應」。至於 **Visual Studio 是否真的依 `FilesToWatch` 的 glob 送出該通知**，以及語意色彩與內嵌提示在 `.go` 編輯器中的實際呈現，屬於
+> VS UI 行為，無法在無介面環境下證明。
 
 ## 專案結構
 
 ```
 orikago/
-├── Orikago.slnx                        # 方案檔（新的 XML 格式；Type="C#" 讓 VS 以 SDK 專案系統載入 .goproj）
-├── go.work                          # Go 工作區，列出範例與邊車模組
-├── LICENSE                          # MIT
+│   # 方案檔（新的 XML 格式；Type="C#" 讓 VS 以 SDK 專案系統載入 .goproj）
+├── Orikago.slnx
+│   # Go 工作區，列出範例與邊車模組
+├── go.work
+│   # MIT
+├── LICENSE
 ├── src/
 │   ├── csharp/
-│   │   ├── Orikago.CodeAnalysis/   # Roslyn 風格的編譯器平台 API
-│   │   └── Orikago.LanguageService/ # VS 擴充（gopls LSP 用戶端、delve 偵錯整合、命令、圖示）
+│   │   │   # Roslyn 風格的編譯器平台 API
+│   │   ├── Orikago.CodeAnalysis/
+│   │   │   # VS 擴充功能（gopls LSP 用戶端、delve 偵錯整合、命令、圖示）
+│   │   └── Orikago.LanguageService/
 │   └── go/
-│       └── orikagoc/               # Go 邊車：以 go/packages 提供 parse／check／symbol
+│       │   # Go 邊車：以 go/packages 提供 parse／check／symbol
+│       └── orikagoc/
 ├── test/
 │   └── csharp/
 │       └── Orikago.CodeAnalysis.Tests/
-├── sdk/Orikago.Sdk/               # SDK 本體（Sdk.props／Sdk.targets／封裝專案）
-├── templates/                       # Orikago.Templates 範本套件（go-console／go-lib）
-├── samples/hello/                   # 使用本 SDK 的 Go 範例專案，同時作為冒煙測試
-├── docs/                            # pitfalls.md、debug-parity-plan.md、releasing.md
-├── img/                             # README 使用的截圖
+│   # SDK 本體（Sdk.props／Sdk.targets／封裝專案）
+├── sdk/Orikago.Sdk/
+│   # Orikago.Templates 範本套件（go-console／go-lib）
+├── templates/
+│   # 使用本 SDK 的 Go 範例專案，同時作為冒煙測試
+├── samples/hello/
+│   # pitfalls.md、debug-parity-plan.md、releasing.md
+├── docs/
+│   # README 使用的截圖
+├── img/
 ├── nuget.config
 └── scripts/
-    ├── build-sdk.ps1                # 將 SDK 打包到本機 feed
-    ├── build-release.ps1            # 產出所有可發布產物到 ./dist
-    └── install-vsix.ps1             # 重建並重新安裝擴充
+    │   # 將 SDK 封裝到本機摘要來源
+    ├── build-sdk.ps1
+    │   # 產出所有可發行的成品到 ./dist
+    ├── build-release.ps1
+    │   # 重建並重新安裝擴充功能
+    └── install-vsix.ps1
 ```
 
-Go 的測試檔案**必須與被測套件放在同一目錄**——這是 Go 工具鏈的規定而非偏好——因此 `test/` 底下只有 C# 測試專案，Go 測試仍留在 `samples/hello/greeting_test.go` 以及邊車原始碼旁。
+Go 的測試檔案**必須與被測套件放在同一目錄**——這是 Go 工具鏈的規定而非偏好——因此 `test/` 底下只有 C# 測試專案，Go 測試仍留在
+`samples/hello/greeting_test.go` 以及邊車原始碼旁。
 
 ## 圖示
 
-- **「新增專案」對話方塊**：`go-console` 與 `go-lib` 兩個範本各自帶有 `.template.config/icon.png`（32x32），並在 `.template.config/ide.host.json` 以 `"icon": "icon.png"` 宣告（相對路徑以 `.template.config` 為基準解析）。重新打包並安裝 `Orikago.Templates` 後，VS 的「新增專案」對話方塊即會顯示範本圖示。
-- **方案總管**：VSIX 內的 `OrikagoImages.imagemanifest` 向 VS 影像服務註冊 `GoProjectNode` 與 `GoFileNode` 兩組圖示（PNG 以 WPF 元件資源形式內嵌於 `Orikago.LanguageService.dll`），再由 `GoProjectTreeIconProvider`（`IProjectTreePropertiesProvider`，`[Order(1000)]`）套用到專案根節點與 `.go` 檔案節點。
-- **Orikago 專案能力（ProjectCapability）**：`Orikago.Sdk` 的 `Sdk.props` 對每個 `.goproj` 專案宣告 `<ProjectCapability Include="Orikago" />`，VSIX 的 MEF 匯出即以 `[AppliesTo("Orikago")]` 只作用於 Go 專案。
+- **「新增專案」對話方塊**：`go-console` 與 `go-lib` 兩個範本各自帶有 `.template.config/icon.png`（32x32），並在
+  `.template.config/ide.host.json` 以 `"icon": "icon.png"` 宣告（相對路徑以 `.template.config`
+  為基準解析）。重新封裝並安裝 `Orikago.Templates` 後，VS 的「新增專案」對話方塊即會顯示範本圖示。
+- **方案總管**：VSIX 內的 `OrikagoImages.imagemanifest` 向 VS 影像服務註冊 `GoProjectNode` 與 `GoFileNode`
+  兩組圖示（PNG 以 WPF 元件資源形式內嵌於 `Orikago.LanguageService.dll`），再由
+  `GoProjectTreeIconProvider`（`IProjectTreePropertiesProvider`，`[Order(1000)]`）套用到專案根節點與 `.go`
+  檔案節點。
+- **Orikago 專案能力（ProjectCapability）**：`Orikago.Sdk` 的 `Sdk.props` 對每個 `.goproj` 專案宣告
+  `<ProjectCapability Include="Orikago" />`，VSIX 的 MEF 匯出即以 `[AppliesTo("Orikago")]` 只作用於 Go 專案。
 - **注意**：更新範本或 VSIX 後需**重新啟動 Visual Studio**（範本快取與 MEF／影像庫快取須重建）才會看到新圖示。
 
 ## 編譯器平台的正確性修正
 
-外部審查（codex）在 `src/csharp/Orikago.CodeAnalysis` + `src/go/orikagoc` 找出三個真實缺陷，皆已修正並補上測試（測試總數 11 → 23）：
+外部審查（codex）在 `src/csharp/Orikago.CodeAnalysis` + `src/go/orikagoc`
+找出三個真實缺陷，皆已修正並補上測試（測試總數 11 → 23）：
 
 | 缺陷 | 症狀 | 修正 |
 |------|------|------|
-| 型別檢查不認識 Go 模組 | 邊車以 `go/importer` 的 source importer 檢查，不理解 `go.mod`／模組快取／`go.work`。匯入外部相依（例如 `github.com/google/uuid`）的模組 `go build` 成功，`GetDiagnostics()` 卻回報假的 `could not import ...`。 | 改用 `golang.org/x/tools/go/packages`（`packages.Load`，內部驅動真正的 `go list`），模組相依、工作區與 `vendor` 的解析方式與 `go build` 完全一致。JSON 協定形狀不變，「原始碼錯誤是資料（結束代碼 0）、僅基礎設施失敗回傳非零」的規則也不變。 |
+| 型別檢查不認識 Go 模組 | 邊車以 `go/importer` 的原始碼匯入器檢查，不理解 `go.mod`／模組快取／`go.work`。匯入外部相依（例如 `github.com/google/uuid`）的模組 `go build` 成功，`GetDiagnostics()` 卻回報假的 `could not import ...`。 | 改用 `golang.org/x/tools/go/packages`（`packages.Load`，內部驅動真正的 `go list`），模組相依、工作區與 `vendor` 的解析方式與 `go build` 完全一致。JSON 協定形狀不變，「原始碼錯誤是資料（結束代碼 0）、僅基礎設施失敗傳回非零」的規則也不變。 |
 | 檢查與建置看的檔案集合可能不同 | `Emit` 接受 `Tags`／`OS`／`Arch`，但 `GetDiagnostics()` 沒有對應選項，邊車固定以 `build.Default` 檢查。於是 `//go:build linux` 的程式碼在 Windows 上完全檢查不到，卻會被 `Emit(OS = "linux")` 編譯。 | 邊車的 `check`／`symbol` 新增 `-tags`／`-goos`／`-goarch`（透過 `packages.Config.Env` 設定 `GOOS`／`GOARCH`／`GOFLAGS=-tags=…`）。C# 端新增 `GoAnalysisOptions`，並讓 `GoEmitOptions` 由它衍生，因此**同一個選項物件**可同時交給 `GetDiagnostics(options)`、`GetSemanticModel(options)` 與 `Emit(path, options)`。無參數多載維持原樣。 |
 | 欄號單位與編輯器不一致 | Go 的 `token.Position.Column` 是**行內位元組數**，而 .NET／Visual Studio／LSP 使用 **UTF-16 字碼單位**。含非 ASCII 字元的行（例如 `fmt.Println("你好世界", value)`）中，`GetSymbolAt` 以 VS 回報的欄號查詢會得到 `null`。 | 在邊車的協定邊界做轉換：輸出位置時位元組欄 → UTF-16 欄，`symbol` 接受位置時 UTF-16 欄 → 位元組欄（實際讀取該行的原始位元組換算）。`parse`、`check`、`symbol` 三個命令一致。`offset` 仍維持為位元組位移。C# 端的 XML 文件已明確標示單位。 |
 
-驗證方式（`test/csharp/Orikago.CodeAnalysis.Tests/`）：`GoModuleResolutionTests` 以真實的 `go mod tidy`／`go build` 當作基準，要求 `GetDiagnostics()` 與 `go build` 的判斷一致；`GoBuildContextTests` 檢查 `//go:build linux` 與自訂標籤的檔案「預設看不到、指定建置內容才看得到」；`GoColumnUnitTests` 以含 `你好世界`／`名前` 的原始碼確認欄號為 UTF-16 單位（並確認舊的位元組欄號不再解析成功）。上述 11 項新測試在修正前的邊車上全數失敗。
+驗證方式（`test/csharp/Orikago.CodeAnalysis.Tests/`）：`GoModuleResolutionTests` 以真實的
+`go mod tidy`／`go build` 當作基準，要求 `GetDiagnostics()` 與 `go build` 的判斷一致；`GoBuildContextTests` 檢查
+`//go:build linux` 與自訂標籤的檔案「預設看不到、指定建置內容才看得到」；`GoColumnUnitTests` 以含 `你好世界`／`名前` 的原始碼確認欄號為
+UTF-16 單位（並確認舊的位元組欄號不再解析成功）。上述 11 項新測試在修正前的邊車上全數失敗。
 
-> 邊車現在依賴 `golang.org/x/tools`（見 `src/go/orikagoc/go.mod`／`go.sum`）。由於 `check` 會透過 `go list` 從原始碼型別檢查相依套件，單次檢查約需數秒。
+> 邊車現在依賴 `golang.org/x/tools`（見 `src/go/orikagoc/go.mod`／`go.sum`）。由於 `check` 會透過 `go list`
+> 從原始碼型別檢查相依套件，單次檢查約需數秒。
 
 ## MSBuild SDK 的正確性修正
 
@@ -455,60 +639,69 @@ Go 的測試檔案**必須與被測套件放在同一目錄**——這是 Go 工
 
 | 缺陷 | 症狀 | 修正 |
 |------|------|------|
-| `go work use` 沒有跨行程鎖（`Sdk.targets`） | 一份 `go.work` 由多個 `.goproj` 共用，`/m` 平行建置下每個專案各自在獨立行程中判斷「不是成員」並同時改寫 `go.work`；`go work use` 是整檔的讀-改-寫，後寫者會**默默覆蓋**先寫者，把別的模組從 `use` 清單中抹掉（所有行程結束代碼仍為 0）。 | 新增行內工作 `<GoWorkUse>`（與 `GoExec` 同樣採 `RoslynCodeTaskFactory`）：以 `go.work` 完整路徑的雜湊命名具名系統 Mutex（`Global\Orikago.GoWork.<hash>`，不同工作區互不排隊；無 `SeCreateGlobalPrivilege` 時降級為 `Local\`），**在鎖內重新檢查成員資格**後才執行 `go work use`，並於 `finally` 釋放；`AbandonedMutexException` 視為取得所有權（前一持有者中途死亡，鎖內重讀即可自我修復）。等冪性、「沒有 `go.work` 不動作」、「`GOWORK=off` 不動作」、「不改寫使用者手寫的既有項目」全部維持不變。 |
+| `go work use` 沒有跨處理序鎖（`Sdk.targets`） | 一份 `go.work` 由多個 `.goproj` 共用，`/m` 平行建置下每個專案各自在獨立處理序中判斷「不是成員」並同時改寫 `go.work`；`go work use` 是整檔的讀-改-寫，後寫者會**默默覆蓋**先寫者，把別的模組從 `use` 清單中抹掉（所有處理序的結束代碼仍為 0）。 | 新增內嵌工作 `<GoWorkUse>`（與 `GoExec` 同樣採 `RoslynCodeTaskFactory`）：以 `go.work` 完整路徑的雜湊命名具名系統 Mutex（`Global\Orikago.GoWork.<hash>`，不同工作區互不排隊；無 `SeCreateGlobalPrivilege` 時降級為 `Local\`），**在鎖內重新檢查成員資格**後才執行 `go work use`，並於 `finally` 釋放；`AbandonedMutexException` 視為取得所有權（前一持有者中途死亡，鎖內重讀即可自我修復）。等冪性、「沒有 `go.work` 不動作」、「`GOWORK=off` 不動作」、「不改寫使用者手寫的既有項目」全部維持不變。 |
 | cgo 輸入檔的萬用字元不完整（`Sdk.props`） | `GoNativeCompile` 只涵蓋 `.c`／`.h`／`.s`／`.S`／`.syso`。只改了 `helper.cpp` 時 MSBuild 判定為最新，**`GoBuild` 整個被略過、`go build` 根本沒執行**，留下過期的二進位檔。 | 補齊 `go/build` 實際接受的完整集合：`.c .cc .cpp .cxx .m .mm .h .hh .hpp .hxx .s .S .sx .f .F .for .f90 .swig .swigcxx .syso`。同一份專案的 `@(GoNativeCompile)` 由 4 個項目變成 18 個；只碰 `helper.cpp` 後 `GoBuild` 由「Skipping target … up-to-date」變成確實重新執行並改寫執行檔。 |
-| 測試輸出的判定歸屬錯誤（`GoDiagnostics.targets`） | 待判定的診斷行放在**單一共用緩衝區**，被「下一個抵達的判定」整批解決。`go test -v -parallel=2` 下，若某個平行測試先記錄並 `--- PASS`，失敗測試那筆可導覽的 `file.go:N:` 位置就會被當成一般訊息丟掉，錯誤清單只剩通用的「命令結束代碼非 0」；反之，`--- FAIL` 先抵達時，通過的子測試紀錄行會被誤升為錯誤。 | 改為**依測試名稱歸屬**：追蹤 `=== RUN`／`PAUSE`／`CONT`／`NAME` 所指的擁有者，把它戳記在每筆暫存診斷上，`--- FAIL`／`--- PASS`／`--- SKIP` 只解決**它所指名的那個測試**（含 `TestX/sub` 子測試）的項目；串流結束時仍無判定者維持輸出為訊息。非 verbose 的循序情境（`--- FAIL` 先印）與 `go test` 去掉目錄後的基底檔名回填索引都維持原行為。 |
+| 測試輸出的判定歸屬錯誤（`GoDiagnostics.targets`） | 待判定的診斷行放在**單一共用緩衝區**，被「下一個抵達的判定」整批解決。`go test -v -parallel=2` 下，若某個平行測試先記錄並 `--- PASS`，失敗測試那筆可導覽的 `file.go:N:` 位置就會被當成一般訊息丟掉，錯誤清單只剩通用的「命令結束代碼非 0」；反之，`--- FAIL` 先抵達時，通過的子測試記錄行會被誤升為錯誤。 | 改為**依測試名稱歸屬**：追蹤 `=== RUN`／`PAUSE`／`CONT`／`NAME` 所指的擁有者，把它戳記在每筆暫存診斷上，`--- FAIL`／`--- PASS`／`--- SKIP` 只解決**它所指名的那個測試**（含 `TestX/sub` 子測試）的項目；串流結束時仍無判定者維持輸出為訊息。非詳細模式的循序情境（`--- FAIL` 先印）與 `go test` 去掉目錄後的基底檔名回填索引都維持原行為。 |
 
-驗證：`go.work` 競態以存放庫外的測試載具重現——6 個並行 `dotnet build -t:GoEnsureWorkspace` 行程共用一份 `go.work`，修正前（git HEAD 的目標）30 回合中 10 回合有 3 回合掉失模組，修正後 30 回合全數保住 6 個模組與使用者手寫項目，且 `go work edit -json` 皆可解析；真實方案以 `dotnet build Orikago.slnx -t:Rebuild -m` 從空白 `go.work` 重建，結果與簽入版本逐位元組相同。cgo 萬用字元以 `@(GoNativeCompile)` 傾印與「只碰 `.cpp` 後是否重新建置」比對（**本機沒有安裝 C/C++ 工具鏈，`CGO_ENABLED=1 go build` 會停在 `cgo: C compiler "gcc" not found`，因此驗證的是 MSBuild 的最新性判斷這一段機制，而非實際的 cgo 編譯**）。測試判定歸屬以兩個 `t.Parallel()` 測試（一個先記錄並通過、另一個稍後失敗）驗證，修正後輸出 `…\inner\race_test.go(11): error GOTEST: deliberate failure from the parallel test`，修正前同一情境只得到通用的 `exited with code 1`。
+驗證：`go.work` 競態以存放庫外的測試載具重現——6 個並行 `dotnet build -t:GoEnsureWorkspace` 處理序共用一份 `go.work`，修正前（git
+HEAD 的目標）30 回合中 10 回合有 3 回合掉失模組，修正後 30 回合全數保住 6 個模組與使用者手寫項目，且 `go work edit -json` 皆可解析；真實方案以
+`dotnet build Orikago.slnx -t:Rebuild -m` 從空白 `go.work` 重建，結果與簽入版本逐位元組相同。cgo 萬用字元以
+`@(GoNativeCompile)` 傾印與「只碰 `.cpp` 後是否重新建置」比對（**本機沒有安裝 C/C++ 工具鏈，`CGO_ENABLED=1 go build` 會停在
+`cgo: C compiler "gcc" not found`，因此驗證的是 MSBuild 的最新性判斷這一段機制，而非實際的 cgo 編譯**）。測試判定歸屬以兩個
+`t.Parallel()` 測試（一個先記錄並通過、另一個稍後失敗）驗證，修正後輸出
+`…\inner\race_test.go(11): error GOTEST: deliberate failure from the parallel
+test`，修正前同一情境只得到通用的
+`exited with code 1`。
 
 ## 第三輪對抗性審查的修正
 
-第三輪審查（內部多 agent 對抗性 workflow ＋ 外部 codex 並行、交叉比對）確認 15 個新缺陷，皆已修正並驗證。同輪新增功能：`GoModuleReference`（見「支援的屬性」）。
+第三輪審查（內部多代理程式對抗性工作流程＋外部 codex 並行、交叉比對）確認 15 個新缺陷，皆已修正並驗證。同輪新增功能：`GoModuleReference`（見「支援的屬性」）。
 
 **MSBuild SDK（`sdk/Orikago.Sdk/Sdk/`）**：
 
 | 缺陷 | 症狀 | 修正 |
 |------|------|------|
-| workspace 跨模組的過期二進位 | `_GoBuildInput` 只收專案自身檔案；`go.work` 下修改 sibling 模組後,importer 專案被判定最新而跳過 `GoBuild`,`bin` 裡是舊行為的執行檔（結束代碼 0）。 | 偵測到 `go.work`（`GOWORK` 或向上探測）時,在輸入清單放一個永不存在的檔案,使 `GoBuild` 永遠執行——增量交還給 go 自身的建置快取（無變更時只付一次行程啟動）。非 workspace 專案的 MSBuild 增量行為不變。 |
-| `dotnet test`／`go vet` 缺 build context | `VSTest` 與 `GoVet` 不帶 `$(_GoBuildArgs)`,`DefineConstants` 的 `-tags` 與 `GoFlags` 只影響 build,tag-gated 程式碼測試時 `undefined`、vet 檢查錯誤檔案集合。 | 兩者皆帶上 `$(_GoBuildArgs)`（`go test`／`go vet` 都接受建置旗標）,與 `GoBuild` 看同一組檔案。 |
-| `GoWorkUse` 硬編 `GOTOOLCHAIN=local` | `go work use` 會**載入**被加入模組的 `go.mod`,langVersion 比本機工具鏈新的專案永遠無法加入 workspace（範本明明提供這些選項）。 | 移除硬編值,交給預設的 `auto`（實測:go 1.21.5 下把 `go 1.22` 模組加入 workspace 時自動切換 go1.25.12 並成功）。原註解的理由對 `go work edit` 成立、對 `go work use` 不成立。 |
-| `go mod init` 名稱未淨化＋錯誤歸屬 | 專案名含空白/非 ASCII（VS 完全合法）時 `go mod init "My App"` 以 `malformed module path` 失敗,且以 plain `Exec` 執行,錯誤指向 NuGet 快取裡的 `Sdk.targets`。 | `GoModuleName` 預設值套用與範本 `goModuleSafe` 相同的淨化（`My App` → `My_App`,實測建置成功）;`GoEnsureMod` 改用 `GoExec`（`GOMOD` 錯誤碼）。 |
-| RID 驗證擋死 explicit override | `_GoValidatePublishRid` 只認內建六個 RID,`-r freebsd-x64 -p:GoOS=freebsd -p:GoArch=amd64` 這種明確指定也被拒。 | 只在**有效值**（RID 對應與 explicit `GoOS`/`GoArch` 合併後）仍為空時才報錯,實測 freebsd-x64 publish 成功。 |
-| 診斷 parser 不認 cgo 副檔名 | `GoExec` 與 `GoCompilation` 的正規表示式只認 `.go/.s/.S/.c/.h`,`helper.cpp:3:5: error:` 這類 C/C++ 編譯錯誤無法從錯誤清單導覽。 | 兩處副檔名集合對齊 `@(GoNativeCompile)` 的完整清單。 |
+| 工作區跨模組的過期二進位檔 | `_GoBuildInput` 只收專案自身檔案；`go.work` 下修改同層級模組後，匯入它的專案被判定為最新而跳過 `GoBuild`，`bin` 裡是舊行為的執行檔（結束代碼 0）。 | 偵測到 `go.work`（`GOWORK` 或向上探查）時，在輸入清單放一個永不存在的檔案，使 `GoBuild` 永遠執行——增量交還給 go 自身的建置快取（無變更時只付一次處理序啟動）。非工作區專案的 MSBuild 增量行為不變。 |
+| `dotnet test`／`go vet` 缺少建置內容 | `VSTest` 與 `GoVet` 不帶 `$(_GoBuildArgs)`，`DefineConstants` 的 `-tags` 與 `GoFlags` 只影響建置，受標籤控管的程式碼在測試時 `undefined`、vet 檢查錯誤檔案集合。 | 兩者皆帶上 `$(_GoBuildArgs)`（`go test`／`go vet` 都接受建置旗標），與 `GoBuild` 看同一組檔案。 |
+| `GoWorkUse` 硬式編碼 `GOTOOLCHAIN=local` | `go work use` 會**載入**被加入模組的 `go.mod`，langVersion 比本機工具鏈新的專案永遠無法加入工作區（範本明明提供這些選項）。 | 移除硬式編碼的值，交給預設的 `auto`（實測：go 1.21.5 下把 `go 1.22` 模組加入工作區時自動切換 go1.25.12 並成功）。原註解的理由對 `go work edit` 成立、對 `go work use` 不成立。 |
+| `go mod init` 名稱未淨化＋錯誤歸屬 | 專案名含空白／非 ASCII（VS 完全合法）時 `go mod init "My App"` 以 `malformed module path` 失敗，且以單純的 `Exec` 執行，錯誤指向 NuGet 快取裡的 `Sdk.targets`。 | `GoModuleName` 預設值套用與範本 `goModuleSafe` 相同的淨化（`My App` → `My_App`，實測建置成功）；`GoEnsureMod` 改用 `GoExec`（`GOMOD` 錯誤碼）。 |
+| RID 驗證擋死明確覆寫 | `_GoValidatePublishRid` 只認內建六個 RID，`-r freebsd-x64 -p:GoOS=freebsd -p:GoArch=amd64` 這種明確指定也被拒。 | 只在**有效值**（RID 對應與明確指定的 `GoOS`／`GoArch` 合併後）仍為空時才報錯，實測 freebsd-x64 發行成功。 |
+| 診斷剖析器不認 cgo 副檔名 | `GoExec` 與 `GoCompilation` 的正規表示式只認 `.go/.s/.S/.c/.h`，`helper.cpp:3:5: error:` 這類 C/C++ 編譯錯誤無法從錯誤清單導覽。 | 兩處副檔名集合對齊 `@(GoNativeCompile)` 的完整清單。 |
 
 **編譯器平台（`src/csharp/Orikago.CodeAnalysis` + `src/go/orikagoc`）**：
 
 | 缺陷 | 症狀 | 修正 |
 |------|------|------|
-| `Emit()` 欄號是位元組 | `ParseGoBuildOutput` 把 `go build` stderr 的位元組欄原樣塞進 `GoLocation`,違反「所有欄號一律 UTF-16」的文件契約,與 `GetDiagnostics()` 對同一錯誤回報不同欄號。 | C# 端實作與邊車 `toUTF16Col` 同規則的轉換（含 BOM 規則）,新增測試:`你好世界` 行的位元組欄 30 → UTF-16 欄 22。 |
-| 相對路徑用 cwd 解析 | `go list` 的 ListError 位置相對於**模組目錄**,`addDiag` 卻用 `filepath.Abs`（行程 cwd,VS spawn 時不定）,診斷指向不存在的檔案且與 parse 路徑不一致造成重複。 | 相對路徑一律 join 到 loader 的模組目錄（`resolvePath`）。 |
-| 缺 require 的匯入訊息無法行動 | 可行動的 `no required module provides package X; to add it: go get X` 附在**依賴 stub 套件**上,只走訪 top-level 的迴圈把它丟掉,只剩 `could not import X (invalid package name: "")`。 | 改用 `packages.Visit` 走訪整個圖;依賴套件只取**位置落在本模組內**的錯誤,避免第三方套件內部錯誤灌爆錯誤清單。 |
-| 壞 `go.mod` 變 infra error | `go.mod` 打錯字（每次手邊編輯都會經過的狀態）使 `packages.Load` 硬錯,邊車 exit 1,C# 端 `GetDiagnostics()` 直接擲出例外——違反「壞原始碼是資料,exit 0」的契約。 | 工具鏈**有跑起來**的載入失敗轉為指向 `go.mod` 對應行的診斷（訊息內含 `go.mod:5:` 時取其行號）,exit 0;僅「go 指令不存在／目錄不存在」維持 infra error。 |
-| BOM 檔第一行欄號右偏 1 | UTF-8 BOM 的 3 位元組計入 go/token 位元組欄,但 VS 緩衝區會剝掉 BOM;`utf16Len` 把 U+FEFF 算 1 單位,第一行所有欄號偏 1（`toByteCol` 為鏡像錯誤）。 | 行首 U+FEFF 計為 0 個 UTF-16 單位;`toByteCol` 先跳過 BOM 的 3 位元組再計數（editor 欄 1 ↔ 位元組欄 4）。實測 BOM 檔 `parse`:File 欄 1、`main` 識別項欄 9,與 VS 緩衝區一致。 |
+| `Emit()` 欄號是位元組 | `ParseGoBuildOutput` 把 `go build` stderr 的位元組欄原樣塞進 `GoLocation`，違反「所有欄號一律 UTF-16」的文件契約，與 `GetDiagnostics()` 對同一錯誤回報不同欄號。 | C# 端實作與邊車 `toUTF16Col` 同規則的轉換（含 BOM 規則），新增測試：`你好世界` 行的位元組欄 30 → UTF-16 欄 22。 |
+| 相對路徑以目前工作目錄解析 | `go list` 的 ListError 位置相對於**模組目錄**，`addDiag` 卻用 `filepath.Abs`（處理序的目前工作目錄，由 VS 啟動時不固定），診斷指向不存在的檔案且與 parse 路徑不一致造成重複。 | 相對路徑一律接到載入器的模組目錄（`resolvePath`）。 |
+| 缺 require 的匯入訊息無法行動 | 可行動的 `no required module provides package X; to add it: go get X` 附在**相依的虛設常式套件**上，只走訪最上層套件的迴圈把它丟掉，只剩 `could not import X (invalid package name: "")`。 | 改用 `packages.Visit` 走訪整個圖；相依套件只取**位置落在本模組內**的錯誤，避免第三方套件內部錯誤灌爆錯誤清單。 |
+| 壞 `go.mod` 變成基礎設施錯誤 | `go.mod` 打錯字（每次手動編輯都會經過的狀態）使 `packages.Load` 硬錯，邊車以結束代碼 1 結束，C# 端 `GetDiagnostics()` 直接擲出例外——違反「壞原始碼是資料，結束代碼 0」的契約。 | 工具鏈**有跑起來**的載入失敗轉為指向 `go.mod` 對應行的診斷（訊息內含 `go.mod:5:` 時取其行號），結束代碼 0；僅「go 指令不存在／目錄不存在」維持基礎設施錯誤。 |
+| BOM 檔第一行欄號右偏 1 | UTF-8 BOM 的 3 位元組計入 go/token 位元組欄，但 VS 緩衝區會剝掉 BOM；`utf16Len` 把 U+FEFF 算 1 單位，第一行所有欄號偏 1（`toByteCol` 為鏡像錯誤）。 | 行首 U+FEFF 計為 0 個 UTF-16 單位；`toByteCol` 先跳過 BOM 的 3 位元組再計數（編輯器欄 1 ↔ 位元組欄 4）。實測 BOM 檔 `parse`：File 欄 1、`main` 識別項欄 9，與 VS 緩衝區一致。 |
 
 **VSIX（`src/csharp/Orikago.LanguageService/`）**：
 
 | 缺陷 | 症狀 | 修正 |
 |------|------|------|
-| solution 模式收不到 watched-file 事件 | `FilesToWatch` 只有 Open Folder host 消費;.sln/.slnx（主要模式）下終端機 `go get`、SDK 目標改寫 go.mod 後 gopls 持續用過期模組圖,假紅蚯蚓直到重啟 VS。VS 又硬編 dynamicRegistration=false,gopls 無法自行註冊 watcher。 | 實作 `ILanguageClientCustomMessage2.AttachForCustomMessageAsync` 取得 JsonRpc,`initialized` 後在 workspace root 掛 client 端 `FileSystemWatcher`（`*.go`/`go.mod`/`go.sum`/`go.work`,排除 bin/obj/node_modules 與 `FilesToWatch` 一致）,直接以 rpc 轉發 `workspace/didChangeWatchedFiles`（1=Created、2=Changed、3=Deleted,rename 拆成 3+1）。watcher 與 rpc 隨 server 生命週期釋放。 |
-| `FindGopls` 忽略 GOBIN/GOPATH | 只查 PATH 與 `%USERPROFILE%\go\bin`;`go env -w GOBIN=…` 的使用者照錯誤訊息 `go install` 後仍「找不到」,永遠循環。 | 探測順序改為 PATH → `GOBIN`/`GOPATH\bin`（環境變數＋`go env` 讀出 `go env -w` 持久化值）→ `%USERPROFILE%\go\bin`,錯誤訊息同步更新。 |
+| 方案模式收不到監看檔案事件 | `FilesToWatch` 只有 Open Folder 主機會使用；.sln/.slnx（主要模式）下終端機 `go get`、SDK 目標改寫 go.mod 後 gopls 持續用過期模組圖，假的紅色波形曲線直到重新啟動 VS 才消失。VS 又硬式編碼 dynamicRegistration=false，gopls 無法自行註冊監看程式。 | 實作 `ILanguageClientCustomMessage2.AttachForCustomMessageAsync` 取得 JsonRpc，`initialized` 後在工作區根目錄掛上用戶端的 `FileSystemWatcher`（`*.go`／`go.mod`／`go.sum`／`go.work`，排除 bin/obj/node_modules 與 `FilesToWatch` 一致），直接以 RPC 轉發 `workspace/didChangeWatchedFiles`（1=Created、2=Changed、3=Deleted，重新命名拆成 3+1）。監看程式與 RPC 連線隨伺服器生命週期釋放。 |
+| `FindGopls` 忽略 GOBIN/GOPATH | 只查 PATH 與 `%USERPROFILE%\go\bin`；`go env -w GOBIN=…` 的使用者照錯誤訊息 `go install` 後仍「找不到」，永遠循環。 | 探查順序改為 PATH → `GOBIN`／`GOPATH\bin`（環境變數＋`go env` 讀出 `go env -w` 持久化值）→ `%USERPROFILE%\go\bin`，錯誤訊息同步更新。 |
 
-**腳本**：`install-vsix.ps1 -NoBuild` 不再要求 extension development workload——它只需要每個 VS 版本都有的 `VSIXInstaller.exe`;workload 檢查僅在需要 MSBuild 建置時執行。
+**腳本**：`install-vsix.ps1 -NoBuild` 不再要求擴充功能開發工作負載——它只需要每個 VS 版本都有的
+`VSIXInstaller.exe`；工作負載檢查僅在需要 MSBuild 建置時執行。
 
-驗證：compiler 測試 26/26（含新增的 Emit UTF-16 欄號測試）;workspace stale binary、`-tags` 進 test/vet、freebsd publish override、`My App` 淨化、GoWorkUse 工具鏈切換、orikagoc 四個場景（相對路徑、缺 require、壞 go.mod、BOM）皆以實際重現腳本在修正前後比對確認。
+驗證：編譯器測試 26/26（含新增的 Emit UTF-16 欄號測試）；工作區過期二進位檔、`-tags` 進入 test／vet、freebsd 發行覆寫、`My App`
+淨化、GoWorkUse 工具鏈切換、orikagoc 四個場景（相對路徑、缺 require、壞 go.mod、BOM）皆以實際重現腳本在修正前後比對確認。
 
-**後續使用者回報**：Solution Explorer 必須按「Show All Files」才看得到 `main.go`。根因在 `Microsoft.NET.Sdk.DefaultItems.props`——它先 `None Include="**/*"` 再 `None Remove="**/*$(DefaultLanguageSourceExtension)"` 把語言原始碼從 None 移走；`.goproj` 沒有語言 props,該屬性是**空字串**,`Remove` 變成 `**/*`,把剛建好的整個 None 清單抹掉,專案因此**沒有任何項目**。修正：`Sdk.props` 在巢狀 import 之後以相同的 Exclude 重跑一次 None glob（`-getItem:None` 由空清單變為完整檔案清單,含 `main.go`／`go.mod`／`go.work`）。
-
+**後續使用者回報**：方案總管必須按「顯示所有檔案」才看得到 `main.go`。根因在 `Microsoft.NET.Sdk.DefaultItems.props`——它先
+`None Include="**/*"` 再 `None Remove="**/*$(DefaultLanguageSourceExtension)"` 把語言原始碼從 None
+移走；`.goproj` 沒有語言 props，該屬性是**空字串**，`Remove` 變成 `**/*`，把剛建好的整個 None
+清單抹掉，專案因此**沒有任何項目**。修正：`Sdk.props` 在巢狀 import 之後以相同的 Exclude 重跑一次 None glob（`-getItem:None`
+由空清單變為完整檔案清單，含 `main.go`／`go.mod`／`go.work`）。
 
 ## 授權
 
 [MIT](LICENSE) — Copyright (c) 2026 Orlys。
 
-可自由使用、修改與再散布（含商業用途），條件是**著作權聲明與授權條款需隨之保留**。該聲明已隨 VSIX 內含（`LICENSE.txt`），兩個 NuGet 套件也以 `PackageLicenseExpression` 宣告，使用者取得套件時會自動收到。
+可自由使用、修改與再散布（含商業用途），條件是**著作權聲明與授權條款需隨之保留**。該聲明已隨 VSIX 內含（`LICENSE.txt`），兩個 NuGet 套件也以
+`PackageLicenseExpression` 宣告，使用者取得套件時會自動收到。
 
 本軟體按現狀提供，不附任何擔保——另請參閱開頭的實驗性專案警告。
-
-
-
-
-

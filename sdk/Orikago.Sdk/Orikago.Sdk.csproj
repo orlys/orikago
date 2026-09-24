@@ -14,7 +14,8 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>go;golang;msbuild;sdk;visual-studio</PackageTags>
 
-    <!-- This package carries only MSBuild logic (Sdk/Sdk.props + Sdk/Sdk.targets); ship no assembly, no deps. -->
+    <!-- This package carries only MSBuild logic (Sdk/Sdk.props + Sdk/Sdk.targets); -->
+    <!-- ship no assembly, no deps. -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
 

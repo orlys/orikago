@@ -1,11 +1,7 @@
-using Xunit;
-
 namespace Orikago.CodeAnalysis.Tests;
 
-public class GoSyntaxTreeTests
+public sealed class GoSyntaxTreeTests
 {
-    public GoSyntaxTreeTests() => Sidecar.EnsureConfigured();
-
     // Built via escapes so the byte layout (LF line endings, tab indentation) is exact —
     // the position assertions below were verified against go/parser (go1.21) for these bytes.
     //
@@ -16,7 +12,7 @@ public class GoSyntaxTreeTests
     //  line 5: func main() {
     //  line 6: \tfmt.Println("hello")
     //  line 7: }
-    private const string HelloSource =
+    private const string HELLO_SOURCE =
         "package main\n" +
         "\n" +
         "import \"fmt\"\n" +
@@ -25,11 +21,18 @@ public class GoSyntaxTreeTests
         "\tfmt.Println(\"hello\")\n" +
         "}\n";
 
+    public GoSyntaxTreeTests()
+    {
+        Sidecar.EnsureConfigured();
+    }
+
     [Fact]
     public void ParseText_ValidProgram_RootIsFile()
     {
-        var tree = GoSyntaxTree.ParseText(HelloSource, "hello.go");
+        // Act
+        var tree = GoSyntaxTree.ParseText(HELLO_SOURCE, "hello.go");
 
+        // Assert
         Assert.NotNull(tree.Root);
         Assert.Equal("File", tree.Root.Kind);
         Assert.NotEmpty(tree.Root.Children);
@@ -39,25 +42,31 @@ public class GoSyntaxTreeTests
     [Fact]
     public void ParseText_ValidProgram_ContainsFuncDeclNamedMain()
     {
-        var tree = GoSyntaxTree.ParseText(HelloSource, "hello.go");
+        // Act
+        var tree = GoSyntaxTree.ParseText(HELLO_SOURCE, "hello.go");
 
+        // Assert
         Assert.NotNull(tree.Root);
         var funcDecl = Assert.Single(
-            tree.Root!.DescendantNodes(), n => n.Kind == "FuncDecl");
+            collection: tree.Root.DescendantNodes(),
+            predicate: node => HasKind(node, "FuncDecl"));
 
         var nameIdent = funcDecl.FirstChild("Ident");
         Assert.NotNull(nameIdent);
-        Assert.Equal("main", nameIdent!.Text);
+        Assert.Equal("main", nameIdent.Text);
     }
 
     [Fact]
     public void ParseText_ValidProgram_FuncKeywordPositionMatchesSource()
     {
-        var tree = GoSyntaxTree.ParseText(HelloSource, "hello.go");
+        // Act
+        var tree = GoSyntaxTree.ParseText(HELLO_SOURCE, "hello.go");
 
+        // Assert
         Assert.NotNull(tree.Root);
         var funcDecl = Assert.Single(
-            tree.Root!.DescendantNodes(), n => n.Kind == "FuncDecl");
+            collection: tree.Root.DescendantNodes(),
+            predicate: node => HasKind(node, "FuncDecl"));
 
         // ast.FuncDecl.Pos() is the `func` keyword: line 5, column 1 (1-based).
         Assert.Equal(5, funcDecl.Start.Line);
@@ -74,15 +83,19 @@ public class GoSyntaxTreeTests
         // A stub that returns only a top-level File node (or File + decls) passes the
         // shape tests above; requiring interior expression nodes and token text rules
         // that out.
-        var tree = GoSyntaxTree.ParseText(HelloSource, "hello.go");
-        Assert.NotNull(tree.Root);
-        var descendants = tree.Root!.DescendantNodes().ToList();
 
-        Assert.Contains(descendants, n => n.Kind == "CallExpr");
-        Assert.Contains(descendants, n => n.Kind == "BlockStmt");
-        Assert.Contains(descendants, n => n.Kind == "Ident" && n.Text == "fmt");
-        Assert.Contains(descendants, n => n.Kind == "Ident" && n.Text == "Println");
-        Assert.Contains(descendants, n => n.Kind == "BasicLit" && n.Text == "\"hello\"");
+        // Act
+        var tree = GoSyntaxTree.ParseText(HELLO_SOURCE, "hello.go");
+
+        // Assert
+        Assert.NotNull(tree.Root);
+        var descendants = tree.Root.DescendantNodes().ToList();
+
+        Assert.Contains(descendants, node => HasKind(node, "CallExpr"));
+        Assert.Contains(descendants, node => HasKind(node, "BlockStmt"));
+        Assert.Contains(descendants, node => HasKindAndText(node, "Ident", "fmt"));
+        Assert.Contains(descendants, node => HasKindAndText(node, "Ident", "Println"));
+        Assert.Contains(descendants, node => HasKindAndText(node, "BasicLit", "\"hello\""));
     }
 
     [Fact]
@@ -91,25 +104,44 @@ public class GoSyntaxTreeTests
         // line 1: package main
         // line 2: func {          <- go/parser (AllErrors) reports the first error at
         //                            line 2, col 6: expected 'IDENT', found '{'
-        var tree = GoSyntaxTree.ParseText("package main\nfunc {", "broken.go");
 
+        // Act
+        var tree = GoSyntaxTree.ParseText("package main\nfunc {", "broken.go");
         var diagnostics = tree.GetDiagnostics();
+
+        // Assert
         Assert.NotEmpty(diagnostics);
 
-        Assert.All(diagnostics, d => Assert.Equal("GOPARSE", d.Id));
-        Assert.All(diagnostics, d => Assert.Equal(GoDiagnosticSeverity.Error, d.Severity));
+        Assert.All(diagnostics, diagnostic => Assert.Equal("GOPARSE", diagnostic.Id));
+        Assert.All(
+            collection: diagnostics,
+            action: diagnostic => Assert.Equal(GoDiagnosticSeverity.Error, diagnostic.Severity));
 
-        Assert.Contains(diagnostics, d =>
-            d.Location.Line == 2 &&
-            d.Location.Column == 6 &&
-            d.Message.Contains("expected", StringComparison.OrdinalIgnoreCase) &&
-            d.Message.Contains("IDENT"));
+        Assert.Contains(
+            collection: diagnostics,
+            filter: diagnostic => (diagnostic.Location.Line == 2) &&
+                (diagnostic.Location.Column == 6) &&
+                diagnostic.Message.Contains("expected", StringComparison.OrdinalIgnoreCase) &&
+                diagnostic.Message.Contains("IDENT", StringComparison.Ordinal));
     }
 
     [Fact]
     public void ParseText_FilePath_IsPreserved()
     {
-        var tree = GoSyntaxTree.ParseText(HelloSource, "hello.go");
+        // Act
+        var tree = GoSyntaxTree.ParseText(HELLO_SOURCE, "hello.go");
+
+        // Assert
         Assert.Equal("hello.go", tree.FilePath);
+    }
+
+    private static bool HasKind(GoSyntaxNode node, string kind)
+    {
+        return string.Equals(node.Kind, kind, StringComparison.Ordinal);
+    }
+
+    private static bool HasKindAndText(GoSyntaxNode node, string kind, string text)
+    {
+        return HasKind(node, kind) && string.Equals(node.Text, text, StringComparison.Ordinal);
     }
 }

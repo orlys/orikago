@@ -27,7 +27,7 @@
 // Go (Delve) debug engine, hosted by the Visual Studio Debug Adapter Host
 // (same mechanism VS itself uses for CMake debugging). "CLSID" is the FIXED
 // DAH engine implementation {DAB324E9-...}; only the engine GUID is ours and
-// must match GoDebugLaunchProvider.DelveEngineGuid. "Adapter" is deliberately
+// must match DelveEngine.GuidString (Definitions). "Adapter" is deliberately
 // ABSENT: dlv dap speaks TCP only (no stdio), so the launch provider starts
 // "dlv dap --listen=127.0.0.1:0" itself and hands the port to the host via
 // "$debugServer" in the launch options. Exceptions/SetNextStatement are off:

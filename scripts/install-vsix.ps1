@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-    Builds and installs the Orika Go language service extension into Visual Studio.
+    Builds and installs the Orikago language service extension into Visual Studio.
 
 .DESCRIPTION
     VSIXInstaller silently does nothing when the installed extension carries the
@@ -23,9 +23,9 @@ $ErrorActionPreference = 'Stop'
 
 # The scripts live in scripts/, so the repository root is one level up.
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $repoRoot 'src/csharp/OrikaGo.LanguageService/OrikaGo.LanguageService.csproj'
-$vsix = Join-Path $repoRoot 'src/csharp/OrikaGo.LanguageService/bin/Release/OrikaGo.LanguageService.vsix'
-$extensionId = 'OrikaGo.LanguageService'
+$project = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/Orikago.LanguageService.csproj'
+$vsix = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/bin/Release/Orikago.LanguageService.vsix'
+$extensionId = 'Orikago.LanguageService'
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 # The extension-development workload is only needed to BUILD the VSIX (MSBuild
@@ -74,8 +74,8 @@ $update = Start-Process $devenv -ArgumentList '/updateconfiguration' -Wait -Pass
 if ($update.ExitCode -ne 0) { Write-Warning "devenv /updateconfiguration exited with $($update.ExitCode)." }
 
 # Prove the deployed payload is the one just built, rather than trusting exit 0.
-$builtDll = Join-Path $repoRoot 'src/csharp/OrikaGo.LanguageService/bin/Release/OrikaGo.LanguageService.dll'
-$deployed = Get-ChildItem "$env:LOCALAPPDATA/Microsoft/VisualStudio/*/Extensions" -Recurse -Filter 'OrikaGo.LanguageService.dll' -ErrorAction SilentlyContinue
+$builtDll = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/bin/Release/Orikago.LanguageService.dll'
+$deployed = Get-ChildItem "$env:LOCALAPPDATA/Microsoft/VisualStudio/*/Extensions" -Recurse -Filter 'Orikago.LanguageService.dll' -ErrorAction SilentlyContinue
 $builtHash = (Get-FileHash $builtDll).Hash
 $match = $deployed | Where-Object { (Get-FileHash $_.FullName).Hash -eq $builtHash }
 

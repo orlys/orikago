@@ -1,16 +1,16 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "Orika",
+  "author": "Orlys",
   "classifications": [ "Go", "Console" ],
-  "identity": "Orika.Go.Console",
-  "name": "Orika Go 主控台應用程式",
+  "identity": "Orikago.Console",
+  "name": "Orikago Console App",
   "shortName": "go-console",
-  "description": "建立可透過 dotnet build / run / test 驅動 go 工具鏈的 Go 主控台應用程式（Orika.NET.Sdk）。",
+  "description": "A Go console application whose go toolchain is driven by dotnet build / run / test (Orikago.Sdk).",
   "tags": {
     "language": "Go",
     "type": "project"
   },
-  "sourceName": "OrikaGoApp",
+  "sourceName": "OrikagoApp",
   "preferNameDirectory": true,
   "forms": {
     "lc": { "identifier": "lowerCase" },
@@ -40,20 +40,20 @@
       "valueSource": "name",
       "valueTransform": "goModuleSafe",
       "replaces": "GO_MODULE_NAME",
-      "description": "go.mod 的 module 路徑：專案名稱的小寫形式經 ASCII 淨化（Go 慣例 module 路徑全小寫；非法字元以 _ 取代）。"
+      "description": "Module path for go.mod: the project name lowercased and ASCII-sanitized (Go module paths are lowercase by convention; illegal characters become _)."
     },
     "langVersion": {
       "type": "parameter",
       "datatype": "choice",
-      "description": "Go 語言版本：寫入 .goproj 的 <LangVersion> 與 go.mod 的 go 指示詞。",
+      "description": "Go language version, written to <LangVersion> in the .goproj and the go directive in go.mod.",
       "defaultValue": "1.21",
       "replaces": "GO_LANG_VERSION",
-      "displayName": "Go 語言版本",
+      "displayName": "Go language version",
       "choices": [
-        { "choice": "1.13", "description": "Go 1.13（無泛型；語言功能以 go.mod 指示詞把關）" },
-        { "choice": "1.18", "description": "Go 1.18（引入泛型）" },
-        { "choice": "1.21", "description": "Go 1.21（預設；符合本機工具鏈）" },
-        { "choice": "1.22", "description": "Go 1.22（需 GOTOOLCHAIN 下載對應工具鏈）" },
+        { "choice": "1.13", "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)" },
+        { "choice": "1.18", "description": "Go 1.18 (introduces generics)" },
+        { "choice": "1.21", "description": "Go 1.21 (default; matches the local toolchain)" },
+        { "choice": "1.22", "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)" },
         { "choice": "1.23", "description": "Go 1.23" },
         { "choice": "1.24", "description": "Go 1.24" },
         { "choice": "1.25", "description": "Go 1.25" }
@@ -61,6 +61,6 @@
     }
   },
   "primaryOutputs": [
-    { "path": "OrikaGoApp.goproj" }
+    { "path": "OrikagoApp.goproj" }
   ]
 }

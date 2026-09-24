@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Orikago.CodeAnalysis</RootNamespace>
+    <AssemblyName>Orikago.CodeAnalysis</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Roslyn-style Go compiler platform for C#: syntax trees, diagnostics and semantic queries via the orikagoc sidecar.</Description>
+  </PropertyGroup>
+
+</Project>

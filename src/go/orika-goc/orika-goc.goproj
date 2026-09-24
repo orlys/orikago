@@ -1,7 +1,0 @@
-<Project Sdk="Orika.NET.Sdk/1.0.0">
-
-  <PropertyGroup>
-    <LangVersion>1.21</LangVersion>
-  </PropertyGroup>
-
-</Project>

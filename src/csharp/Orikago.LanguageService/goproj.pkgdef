@@ -1,0 +1,136 @@
+// Registers ".goproj" as its own project type, mirroring the pattern VS itself
+// uses for ".msbuildproj" (Common7\IDE\CommonExtensions\Microsoft\Project\msbuildproj.pkgdef):
+// a dedicated project-type GUID whose "Package" is the generic CPS package
+// {3347BEE8-D7A1-4082-95E4-38A439553CC2}. CPS evaluates the project file with
+// MSBuild, so Sdk="Orikago.Sdk/0.1.0-preview" resolves normally and builds drive the
+// Go toolchain.
+//
+// Why not append "goproj" to PossibleProjectExtensions of the C#/SDK factory
+// ({9A19103F-...} or {FAE04EC0-...})? Pkgdef merge is value ASSIGNMENT with no
+// ordering guarantee against VS's own pkgdefs — the in-box value ("csproj") can
+// be merged after ours and silently drop the registration, which manifests as
+// "The template specified cannot be found" when the New Project dialog tries to
+// open a freshly created .goproj. A dedicated key has no competing writers.
+[$RootKey$\Projects\{8A0FBF95-6C22-4C1E-A1F5-2E9E7B3B7A10}]
+@="ProjectFactory"
+"DisplayName"="Orikago Project"
+"DisplayProjectFileExtensions"="Go Project Files (*.goproj);*.goproj"
+"Package"="{3347BEE8-D7A1-4082-95E4-38A439553CC2}"
+"DefaultProjectExtension"="goproj"
+"PossibleProjectExtensions"="goproj"
+"Language(VsTemplate)"="Go"
+"DisableAsynchronousSolutionLoad"=dword:00000000
+"DisableAsynchronousProjectTreeLoad"=dword:00000001
+"PrefetchFactory"="{3998970A-AEE1-4216-A54F-0A99D20A1FAB}"
+"Capabilities"="HandlesOwnReload;OpenProjectFile;EnableOnDemandExcludedFolderLoading"
+
+// Go (Delve) debug engine, hosted by the Visual Studio Debug Adapter Host
+// (same mechanism VS itself uses for CMake debugging). "CLSID" is the FIXED
+// DAH engine implementation {DAB324E9-...}; only the engine GUID is ours and
+// must match GoDebugLaunchProvider.DelveEngineGuid. "Adapter" is deliberately
+// ABSENT: dlv dap speaks TCP only (no stdio), so the launch provider starts
+// "dlv dap --listen=127.0.0.1:0" itself and hands the port to the host via
+// "$debugServer" in the launch options. Exceptions/SetNextStatement are off:
+// delve's DAP implements neither VS-style exception filters nor goto.
+[$RootKey$\AD7Metrics\Engine\{2A5D6E81-4C9B-45E2-B8F3-9D0C7A1E6F24}]
+"CLSID"="{DAB324E9-7B35-454C-ACA8-F6BB0D5C8673}"
+"AlwaysLoadLocal"=dword:00000001
+// Breakpoint kinds: verified against dlv 1.27.0's initialize response
+// (supportsConditionalBreakpoints / supportsHitConditionalBreakpoints /
+// supportsFunctionBreakpoints / supportsInstructionBreakpoints all true).
+// AddressBP is NOT runtime-overridden by the host, so it must be static.
+"AddressBP"=dword:00000001
+"CallStackBP"=dword:00000001
+"ConditionalBP"=dword:00000001
+"FunctionBP"=dword:00000001
+"HitCountBP"=dword:00000001
+// Attach-to-process. The missing piece behind the earlier 0x8971001E
+// failures was ProgramProvider: without one, the shell finds no program
+// belonging to this engine inside the target process and gives up long
+// before the adapter launcher runs. PortSupplier is a single VALUE (the
+// shell's default local supplier), not a numbered subkey list - the subkey
+// shape belongs to the remote/vsdbg registrations. Shapes verified against
+// the JavaScript/TypeScript adapter, the one in-box Debug Adapter Host
+// engine that does local attach.
+"Attach"=dword:00000001
+"AutoSelectPriority"=dword:00000004
+"PortSupplier"="{708C1ECA-FF48-11D2-904F-00C04FA302A1}"
+"ProgramProvider"="{3E8C1A47-9D26-4B85-BF03-71A5E9C4D682}"
+"AlwaysLoadProgramProviderLocal"=dword:00000001
+//
+// MemoryReferencesAreAddresses=0: delve's readMemory accepts ONLY the
+// references it handed out itself (referencesCollection), never a raw
+// address - so letting the host treat any address as a memory reference
+// makes it probe readMemory with the frame's instruction pointer on every
+// stop, which delve rejects ("unknown memoryReference"). Kept at 0 even
+// though DelveProxy now neutralizes that probe.
+"MemoryReferencesAreAddresses"=dword:00000000
+// Exception Settings integration: dlv >= 1.26 reports
+// exceptionBreakpointFilters (unrecovered-panic / runtime-fatal-throw), and
+// supportsExceptionInfoRequest feeds the Exception Helper on a panic.
+"Exceptions"=dword:00000001
+"ExceptionConditions"=dword:00000000
+"ExceptionBreakpointCategory"="{7C8B6A2D-3E94-4F1B-A5D0-6E2C9B7F4A18}"
+// delve DAP has no goto/gotoTargets (any version) - the host would override
+// this to 0 from the initialize response even if set.
+"SetNextStatement"=dword:00000000
+"Name"="Go Debugger (Delve)"
+// No "Language" value: the host ignores it when a LanguageMappings section
+// exists (and warns about it), and that section is defined below.
+"LocalsScopeName"="Locals"
+"SuppressModulesRequestOnAttach"=dword:00000001
+
+// The adapter launcher is registered as an extensibility object (the
+// "AdapterLauncher" metric is the deprecated spelling); the host CoCreates
+// each listed CLSID and binds the interfaces it implements - here
+// IAdapterLauncher, which supplies the attach configuration.
+[$RootKey$\AD7Metrics\Engine\{2A5D6E81-4C9B-45E2-B8F3-9D0C7A1E6F24}\ExtensibilityObjects]
+"0"="{B7A3F2D9-5C81-4E6A-9F42-8D0E3C7B6A25}"
+
+// COM registration for GoProgramProvider (IDebugProgramProvider2), the
+// component that tells the attach pipeline a given process hosts a Go
+// program this engine can debug. GUID must match
+// GoProgramProvider.ClsidString.
+[$RootKey$\CLSID\{3E8C1A47-9D26-4B85-BF03-71A5E9C4D682}]
+"Assembly"="Orikago.LanguageService"
+"Class"="Orikago.LanguageService.GoProgramProvider"
+"InprocServer32"="$WinDir$\SYSTEM32\MSCOREE.DLL"
+"CodeBase"="$PackageFolder$\Orikago.LanguageService.dll"
+"ThreadingModel"="Free"
+
+// VS hit-count modes -> delve hitCondition expressions.
+[$RootKey$\AD7Metrics\Engine\{2A5D6E81-4C9B-45E2-B8F3-9D0C7A1E6F24}\HitCountBreakpointExpressions]
+"Equal"="== {0}"
+"EqualOrGreater"=">= {0}"
+"Mod"="% {0}"
+
+// Claims .go files' breakpoints for this engine (same shape as the vsdbg and
+// CMake registrations; a null LanguageId is accepted - CMake ships one).
+[$RootKey$\AD7Metrics\Engine\{2A5D6E81-4C9B-45E2-B8F3-9D0C7A1E6F24}\LanguageMappings\Go]
+"LanguageId"="{00000000-0000-0000-0000-000000000000}"
+"Extensions"="*"
+
+// Exception Settings category. Entry names must equal dlv's filter LABELS
+// ("Unrecovered Panics" / "Fatal Throws" - probed from dlv 1.27.0's
+// initialize response), which is how the host binds them without an
+// ExceptionBreakpointMappings table. Category State carries
+// EXCEPTION_IS_VSCODE_FILTER (0x10000); 0x4001 = break when thrown,
+// matching dlv's default=true for both filters.
+[$RootKey$\AD7Metrics\Exception\{7C8B6A2D-3E94-4F1B-A5D0-6E2C9B7F4A18}]
+
+[$RootKey$\AD7Metrics\Exception\{7C8B6A2D-3E94-4F1B-A5D0-6E2C9B7F4A18}\Go Exceptions]
+"State"=dword:00014000
+
+[$RootKey$\AD7Metrics\Exception\{7C8B6A2D-3E94-4F1B-A5D0-6E2C9B7F4A18}\Go Exceptions\Unrecovered Panics]
+"State"=dword:00004001
+
+[$RootKey$\AD7Metrics\Exception\{7C8B6A2D-3E94-4F1B-A5D0-6E2C9B7F4A18}\Go Exceptions\Fatal Throws]
+"State"=dword:00004001
+
+// COM registration for GoAdapterLauncher (IAdapterLauncher); same shape as
+// CMake's AdapterLauncher registration. GUID must match
+// GoAdapterLauncher.ClsidString.
+[$RootKey$\CLSID\{B7A3F2D9-5C81-4E6A-9F42-8D0E3C7B6A25}]
+"Assembly"="Orikago.LanguageService"
+"Class"="Orikago.LanguageService.GoAdapterLauncher"
+"CodeBase"="$PackageFolder$\Orikago.LanguageService.dll"

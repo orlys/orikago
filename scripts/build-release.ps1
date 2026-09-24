@@ -32,7 +32,7 @@ Get-ChildItem $OutputDirectory -File | Remove-Item -Force
 # MIT requires the notice to ship with the software; the VSIX carries its own
 # copy, so keep it identical to the repository LICENSE rather than letting the
 # two drift.
-Copy-Item (Join-Path $repoRoot 'LICENSE') (Join-Path $repoRoot 'src/csharp/OrikaGo.LanguageService/LICENSE.txt') -Force
+Copy-Item (Join-Path $repoRoot 'LICENSE') (Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/LICENSE.txt') -Force
 
 # --- VSIX -------------------------------------------------------------------
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
@@ -41,18 +41,18 @@ if (-not $vsPath) {
     throw "No Visual Studio installation with the extension development workload was found; the VSIX cannot be built here."
 }
 $msbuild = Join-Path $vsPath 'MSBuild/Current/Bin/MSBuild.exe'
-$vsixProject = Join-Path $repoRoot 'src/csharp/OrikaGo.LanguageService/OrikaGo.LanguageService.csproj'
+$vsixProject = Join-Path $repoRoot 'src/csharp/Orikago.LanguageService/Orikago.LanguageService.csproj'
 
 Write-Host "Building VSIX ($Configuration)" -ForegroundColor Cyan
 & $msbuild $vsixProject /restore /p:Configuration=$Configuration /v:minimal /nologo /nodeReuse:false
 if ($LASTEXITCODE -ne 0) { throw "VSIX build failed with exit code $LASTEXITCODE." }
 
-$vsix = Join-Path $repoRoot "src/csharp/OrikaGo.LanguageService/bin/$Configuration/OrikaGo.LanguageService.vsix"
+$vsix = Join-Path $repoRoot "src/csharp/Orikago.LanguageService/bin/$Configuration/Orikago.LanguageService.vsix"
 if (-not (Test-Path $vsix)) { throw "Expected VSIX not found at $vsix." }
 Copy-Item $vsix $OutputDirectory -Force
 
 # --- NuGet packages ---------------------------------------------------------
-foreach ($proj in @('sdk/Orika.NET.Sdk/Orika.NET.Sdk.csproj', 'templates/Orika.Go.Templates.csproj')) {
+foreach ($proj in @('sdk/Orikago.Sdk/Orikago.Sdk.csproj', 'templates/Orikago.Templates.csproj')) {
     $full = Join-Path $repoRoot $proj
     Write-Host "Packing $proj" -ForegroundColor Cyan
     dotnet pack $full -c $Configuration -o $OutputDirectory --nologo

@@ -1,6 +1,6 @@
 // Package orikagolib 提供本類別庫的公開 API。
 //
-// 此檔案由 Orika Go 類別庫範本產生；package 名稱會在建立專案時
+// 此檔案由 Orikago 類別庫範本產生；package 名稱會在建立專案時
 // 以專案名稱的小寫形式取代。
 package orikagolib
 

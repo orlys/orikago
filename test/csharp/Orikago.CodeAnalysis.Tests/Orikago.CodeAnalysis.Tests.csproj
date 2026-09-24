@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\csharp\Orikago.CodeAnalysis\Orikago.CodeAnalysis.csproj" />
+    <!-- Build-order dependency only: the sidecar is a Go executable, not an
+         assembly reference. It is copied next to the test output below so
+         OrikagoToolResolver finds it beside Orikago.CodeAnalysis.dll. -->
+    <ProjectReference Include="..\..\..\src\go\orikagoc\orikagoc.goproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+  </ItemGroup>
+
+  <!-- The tests resolve the orikagoc sidecar next to the test assembly
+       (OrikagoToolResolver step 3). GetTargetPath on the .goproj returns the
+       real Go binary (see Orikago.Sdk Sdk.targets). -->
+  <Target Name="CopyOrikagocSidecar" AfterTargets="Build">
+    <MSBuild Projects="..\..\..\src\go\orikagoc\orikagoc.goproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_OrikagocSidecar" />
+    </MSBuild>
+    <Copy SourceFiles="@(_OrikagocSidecar)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
+

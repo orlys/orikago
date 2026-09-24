@@ -1,16 +1,16 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "Orika",
+  "author": "Orlys",
   "classifications": [ "Go", "Library" ],
-  "identity": "Orika.Go.Library",
-  "name": "Orika Go 類別庫",
+  "identity": "Orikago.Library",
+  "name": "Orikago Class Library",
   "shortName": "go-lib",
-  "description": "建立 Go 類別庫模組（Orika.NET.Sdk，OutputType=Library）：dotnet build 會對整個模組做編譯檢查，不產出可執行檔。",
+  "description": "A Go library module (Orikago.Sdk, OutputType=Library): dotnet build type-checks the whole module without producing an executable.",
   "tags": {
     "language": "Go",
     "type": "project"
   },
-  "sourceName": "OrikaGoLib",
+  "sourceName": "OrikagoLib",
   "preferNameDirectory": true,
   "forms": {
     "lc": { "identifier": "lowerCase" },
@@ -59,20 +59,20 @@
       "valueSource": "name",
       "valueTransform": "goModuleSafe",
       "replaces": "GO_MODULE_NAME",
-      "description": "go.mod 的 module 路徑：專案名稱的小寫形式經 ASCII 淨化（Go 慣例 module 路徑全小寫；非法字元以 _ 取代）。"
+      "description": "Module path for go.mod: the project name lowercased and ASCII-sanitized (Go module paths are lowercase by convention; illegal characters become _)."
     },
     "langVersion": {
       "type": "parameter",
       "datatype": "choice",
-      "description": "Go 語言版本：寫入 .goproj 的 <LangVersion> 與 go.mod 的 go 指示詞。",
+      "description": "Go language version, written to <LangVersion> in the .goproj and the go directive in go.mod.",
       "defaultValue": "1.21",
       "replaces": "GO_LANG_VERSION",
-      "displayName": "Go 語言版本",
+      "displayName": "Go language version",
       "choices": [
-        { "choice": "1.13", "description": "Go 1.13（無泛型；語言功能以 go.mod 指示詞把關）" },
-        { "choice": "1.18", "description": "Go 1.18（引入泛型）" },
-        { "choice": "1.21", "description": "Go 1.21（預設；符合本機工具鏈）" },
-        { "choice": "1.22", "description": "Go 1.22（需 GOTOOLCHAIN 下載對應工具鏈）" },
+        { "choice": "1.13", "description": "Go 1.13 (no generics; language features are gated by the go.mod directive)" },
+        { "choice": "1.18", "description": "Go 1.18 (introduces generics)" },
+        { "choice": "1.21", "description": "Go 1.21 (default; matches the local toolchain)" },
+        { "choice": "1.22", "description": "Go 1.22 (requires GOTOOLCHAIN to download the matching toolchain)" },
         { "choice": "1.23", "description": "Go 1.23" },
         { "choice": "1.24", "description": "Go 1.24" },
         { "choice": "1.25", "description": "Go 1.25" }
@@ -83,10 +83,10 @@
       "valueSource": "name",
       "valueTransform": "goPackageSafe",
       "replaces": "orikagolib",
-      "description": "Go package 名稱：專案名稱的小寫形式，並淨化為合法的 Go 識別項（非法字元以 _ 取代）。"
+      "description": "Go package name: the project name lowercased and sanitized into a legal Go identifier (illegal characters become _)."
     }
   },
   "primaryOutputs": [
-    { "path": "OrikaGoLib.goproj" }
+    { "path": "OrikagoLib.goproj" }
   ]
 }

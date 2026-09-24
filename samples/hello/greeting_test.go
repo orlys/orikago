@@ -8,7 +8,7 @@ func TestGreet(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"named", "epic", "hello from epic"},
+		{"named", "Orikago", "hello from Orikago"},
 		{"empty falls back to world", "", "hello from world"},
 	}
 	for _, c := range cases {

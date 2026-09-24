@@ -2,5 +2,5 @@ go 1.25.0
 
 use (
 	./samples/hello
-	./src/go/orika-goc
+	./src/go/orikagoc
 )

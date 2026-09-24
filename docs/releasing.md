@@ -4,9 +4,9 @@ Three artifacts ship together, and they do **not** all go to the same place.
 
 | Artifact | What it is | Where it goes | Why |
 |---|---|---|---|
-| `OrikaGo.LanguageService.vsix` | The Visual Studio extension | **GitHub Release asset** | GitHub Packages has no VSIX registry — it only hosts npm, NuGet, Maven, Gradle, RubyGems and container images. A release asset is the standard distribution point for a VSIX outside the Marketplace. |
-| `Orika.NET.Sdk.<version>.nupkg` | The MSBuild project SDK | **GitHub Packages (NuGet)** *and* release asset | This one genuinely is a NuGet package, and hosting it on a feed removes the "register a local folder feed first" step from the README. |
-| `Orika.Go.Templates.<version>.nupkg` | `dotnet new` templates | **GitHub Packages (NuGet)** *and* release asset | Same reasoning. |
+| `Orikago.LanguageService.vsix` | The Visual Studio extension | **GitHub Release asset** | GitHub Packages has no VSIX registry — it only hosts npm, NuGet, Maven, Gradle, RubyGems and container images. A release asset is the standard distribution point for a VSIX outside the Marketplace. |
+| `Orikago.Sdk.<version>.nupkg` | The MSBuild project SDK | **GitHub Packages (NuGet)** *and* release asset | This one genuinely is a NuGet package, and hosting it on a feed removes the "register a local folder feed first" step from the README. |
+| `Orikago.Templates.<version>.nupkg` | `dotnet new` templates | **GitHub Packages (NuGet)** *and* release asset | Same reasoning. |
 
 ## Build
 
@@ -44,7 +44,7 @@ folder feed — a user-level source is enough:
 
 ```powershell
 dotnet nuget add source "https://nuget.pkg.github.com/orlys/index.json" `
-    --name orika --username <github-user> --password <PAT-with-read:packages> `
+    --name orikago --username <github-user> --password <PAT-with-read:packages> `
     --store-password-in-clear-text --configfile $env:APPDATA\NuGet\NuGet.Config
 ```
 
@@ -56,9 +56,9 @@ publish to nuget.org instead; the packages carry no GitHub-specific metadata.
 
 The version lives in three places and they are deliberately independent:
 
-- `sdk/Orika.NET.Sdk/Orika.NET.Sdk.csproj` — the SDK package version, referenced by every `.goproj` as `Sdk="Orika.NET.Sdk/<version>"`, so bumping it is a breaking change for existing projects.
-- `templates/Orika.Go.Templates.csproj` — the template package version.
-- `src/csharp/OrikaGo.LanguageService/source.extension.vsixmanifest` — the extension version. **VSIXInstaller silently no-ops when the installed version matches**, which is why `install-vsix.ps1` uninstalls first rather than relying on a version bump.
+- `sdk/Orikago.Sdk/Orikago.Sdk.csproj` — the SDK package version, referenced by every `.goproj` as `Sdk="Orikago.Sdk/<version>"`, so bumping it is a breaking change for existing projects.
+- `templates/Orikago.Templates.csproj` — the template package version.
+- `src/csharp/Orikago.LanguageService/source.extension.vsixmanifest` — the extension version. **VSIXInstaller silently no-ops when the installed version matches**, which is why `install-vsix.ps1` uninstalls first rather than relying on a version bump.
 
 The git tag names the release as a whole and does not have to match any of
 them.

@@ -1,0 +1,8 @@
+<Project Sdk="Orikago.Sdk/0.1.0-preview">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <LangVersion>GO_LANG_VERSION</LangVersion>
+  </PropertyGroup>
+
+</Project>

@@ -5,7 +5,7 @@
   "symbolInfo": [
     {
       "id": "langVersion",
-      "name": { "text": "Go 語言版本" },
+      "name": { "text": "Go language version" },
       "isVisible": true
     }
   ]

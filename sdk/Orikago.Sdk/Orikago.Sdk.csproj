@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>Orikago.Sdk</PackageId>
+    <Version>0.1.0-preview</Version>
+    <PackageType>MSBuildSdk</PackageType>
+    <Description>MSBuild project SDK for building, running, testing, and publishing Go projects with the dotnet CLI.</Description>
+    <Authors>Orlys</Authors>
+    <Copyright>Copyright (c) 2026 Orlys</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/orlys/orikago</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/orlys/orikago</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>go;golang;msbuild;sdk;visual-studio</PackageTags>
+
+    <!-- This package carries only MSBuild logic (Sdk/Sdk.props + Sdk/Sdk.targets); ship no assembly, no deps. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+
+    <!-- Nothing to compile; keep the (empty) build inert. -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoWarn>$(NoWarn);NU5128;NETSDK1085;CS2008;CS8021</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The SDK itself: everything under Sdk/ lands at Sdk/ inside the .nupkg. -->
+    <None Include="Sdk\**" Pack="true" PackagePath="Sdk\" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,4 @@
-<Project Sdk="Orika.NET.Sdk/1.0.0">
+<Project Sdk="Orikago.Sdk/0.1.0-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>

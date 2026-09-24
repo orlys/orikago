@@ -30,7 +30,7 @@ $dte.Commands.Item('{命令集GUID}', 命令ID)   # 解析得到就代表在命�
 
 Dependencies 節點的右鍵選單其實是 shell 的 `IDM_VS_CTXT_REFERENCEROOT`(0x0450),「加入專案參考」「管理 NuGet 套件」都是**別人放在同一個共用選單上的 placement**,無法一個個拿掉。
 
-解法:用 `IProjectItemContextMenuProvider`(`AppliesTo("OrikaGo")` + 較高 `[Order]`)把該節點**整個換成自己的私有 context menu**——這正是 managed 專案系統自己的做法(`DependenciesContextMenuProvider`,它以較低 Order 把樹節點映射到 shell 選單)。子節點不處理就會自然落回預設 provider。
+解法:用 `IProjectItemContextMenuProvider`(`AppliesTo("Orikago")` + 較高 `[Order]`)把該節點**整個換成自己的私有 context menu**——這正是 managed 專案系統自己的做法(`DependenciesContextMenuProvider`,它以較低 Order 把樹節點映射到 shell 選單)。子節點不處理就會自然落回預設 provider。
 
 ### 3. VSCT 多語系
 
@@ -194,7 +194,7 @@ val2.Enabled = IsSolutionExistsAndNotDebuggingAndNotBuilding()
 
 ```csharp
 [ExportCommandGroup("25fd982b-8cae-4cbd-a440-e03ffccde106")]   // NuGet 的 guidNuGetDialogCmdSet
-[AppliesTo("OrikaGo")]
+[AppliesTo("Orikago")]
 [Order(1000)]
 internal sealed class GoHiddenNuGetCommandsHandler : IAsyncCommandGroupHandler
 {
@@ -292,7 +292,7 @@ Go 工具鏈特別容易踩:進度訊息全走 stderr。`go mod tidy` 下載模�
 兩個附帶教訓:
 
 - **`WaitForExit(timeout)` 排在 `ReadToEnd()` 之後等於沒有 timeout**——執行不到那一行。`GoToolLocator.RunGoEnv` 原本就是這個形狀,5 秒上限形同虛設。
-- **註解寫了不代表程式碼做了。** 原本的 `OrikaGoPackage.RunGoCommand` 上面明明白白寫著「read both so a full pipe can never block the process」,底下卻是循序的兩行。review 時要看程式碼,別看註解。
+- **註解寫了不代表程式碼做了。** 原本的 `OrikagoPackage.RunGoCommand` 上面明明白白寫著「read both so a full pipe can never block the process」,底下卻是循序的兩行。review 時要看程式碼,別看註解。
 
 順帶:這段原本整個跑在 UI 執行緒上,`go mod tidy` 幾十秒就是 IDE 凍幾十秒。現在只有 DTE 與輸出窗格的呼叫留在主執行緒,行程等待走 `await TaskScheduler.Default`。
 

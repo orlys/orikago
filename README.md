@@ -189,9 +189,9 @@ This script:
 
 ## Honest Limitations (Non-Goals)
 
-- **There is no Go IntelliSense in Visual Studio, and you cannot set breakpoints in Go code and debug it.** That would require writing a VSIX language service, which is out of scope for this SDK.
-- What Visual Studio can do is: load `.goproj` projects, show `.go` files and `go.mod` in Solution Explorer, run real build / clean / launch, and obtain gopls-provided IntelliSense through the VSIX.
-- For writing Go code, an editor with a language service such as VS Code + the Go extension is recommended.
+- **The SDK alone gives Visual Studio no Go language service.** Without the VSIX, Visual Studio can load `.goproj` projects, show `.go` files and `go.mod` in Solution Explorer, and run real build / clean / launch — nothing more. IntelliSense (via gopls) and F5 debugging (via delve) come from the VSIX, and need `gopls` and `dlv` installed.
+- **Debugging is not at C# parity.** Attach to Process, the Disassembly and Memory windows, Edit and Continue, Set Next Statement, the Tasks window and Diagnostic Tools are not available; see [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md) for the full matrix.
+- **The IDE integration is experimental** (see the warning at the top): it depends on Visual Studio internals with no compatibility promise, and has only been exercised on Visual Studio 2026 (18.x). Visual Studio 2022 17.14 is accepted by the installer but untested.
 
 ## Project Templates (dotnet new)
 

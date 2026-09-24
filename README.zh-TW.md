@@ -189,9 +189,9 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 
 ## 誠實的限制（非目標）
 
-- **Visual Studio 中沒有 Go 的 IntelliSense，也不能對 Go 程式碼設中斷點偵錯。** 這需要撰寫 VSIX 語言服務，不在本 SDK 的範圍內。
-- Visual Studio 能做到的是：載入 `.goproj` 專案、在方案總管顯示 `.go` 檔與 `go.mod`、執行真實的建置／清除／啟動，以及透過 VSIX 取得 gopls 提供的 IntelliSense。
-- 撰寫 Go 程式碼建議搭配 VS Code + Go 延伸模組等具備語言服務的編輯器。
+- **單靠 SDK，Visual Studio 不會有 Go 語言服務。** 沒有 VSIX 時，Visual Studio 只能載入 `.goproj` 專案、在方案總管顯示 `.go` 檔與 `go.mod`、執行真實的建置／清除／啟動。IntelliSense（透過 gopls）與 F5 偵錯（透過 delve）由 VSIX 提供，且需先安裝 `gopls` 與 `dlv`。
+- **偵錯尚未與 C# 同等。** 附加至處理序、反組譯與記憶體視窗、編輯後繼續、設定下一個陳述式、工作視窗與診斷工具目前都不可用；完整對照見 [`docs/debug-parity-plan.md`](docs/debug-parity-plan.md)。
+- **IDE 整合屬實驗性質**（見開頭警告）：依賴沒有相容性承諾的 Visual Studio 內部機制，且只在 Visual Studio 2026（18.x）上實際跑過。Visual Studio 2022 17.14 安裝程式會接受，但未經測試。
 
 ## 專案範本（dotnet new）
 

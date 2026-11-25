@@ -53,7 +53,7 @@ Orikago.Sdk is an **MSBuild project SDK** distributed as a NuGet package
 (`PackageType=MSBuildSdk`). It lets a `.goproj` project file be written directly as:
 
 ```xml
-<Project Sdk="Orikago.Sdk/0.1.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.0-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>
@@ -74,12 +74,79 @@ so the SDK sets `AppendTargetFrameworkToOutputPath=false` to remove it from the 
 | Property | Description |
 |------|------|
 | `LangVersion` | Maps to the Go language version. The SDK runs `go mod edit -go=<version>`, and the Go toolchain gates language features via the `go` directive in `go.mod`. For example, after setting `1.13`, using generics produces the compile error "requires go1.18 or later" — that is real semantics, not a simulation. |
-| `OutputType` | `Exe` (default): `go build -o` produces an executable; `Library`: `go build ./...` only performs a compile check and produces no executable. |
+| `OutputType` | `Exe` (default): `go build -o` produces an executable; `Library`: `go build ./...` only performs a compile check and writes no file (unless `GoFlags` carries its own `-o`). |
+| `GoBuildMode` | `c-shared` builds a shared library instead (see "Shared Libraries (c-shared)" below). No other value is supported. |
 | `DefineConstants` | A semicolon-separated list that is converted into Go build tags: `a;b` → `go build -tags "a,b"`. |
-| `GoFlags` | Extra flags appended verbatim to the `go build` command line. |
+| `GoFlags` | Extra flags appended verbatim to the `go build`, `go vet` and `go test` command lines. `go test` ignores a `-buildmode` that yields no executable. |
+| `GoEnvironment` | Semicolon-separated `NAME=value` environment variables for `go build` / `vet` / `test` / `get` / `mod tidy`, the same for build and publish: `CGO_ENABLED=1;CC=gcc`. A semicolon inside a value is written `%3B`; on the command line the list goes in inner quotes: `'-p:GoEnvironment="CGO_ENABLED=1;CC=gcc"'`. The target is set through `GoOs` / `GoArch`; `GOOS` / `GOARCH` in this list are an error. |
+| `GoBuildCommand` | Replaces `go build` (default) for build and publish, for example with a wrapper that compiles in a container. It runs in the project directory with `GoEnvironment`, `GOOS` and `GOARCH` set, and receives the arguments after `go build` unchanged — host paths included, so a wrapper has to translate the one after `-o`. `go version`, `go mod`, `go vet` and `go test` still run the local Go. |
+| `Optimize` | `true` drops `-gcflags "all=-N -l"` from a Debug build. |
 | `GoOs` / `GoArch` | Override the `GOOS` / `GOARCH` environment variables to specify a cross-compilation target manually. |
-| `RunGoVet` | When set to `true`, runs `go vet` automatically after the build completes. |
+| `RunGoVet` | When set to `true`, runs `go vet` automatically after the build completes. `go vet` sees one set of tags per run; add a `GoVetTagSet` item per set to check several (see below). |
+| `RunGoFmt` | When set to `true`, the build fails on every source file `gofmt -l` lists or cannot parse (error `GOFMT`). `vendor`, `testdata`, `_*`, `bin` and `obj` directories are skipped. |
+| `GoModTidy` | `false` keeps `go mod tidy` from running after a `GoModuleReference` change (see below). |
 | `GoEnsureWorkspaceMembership` | Defaults to `true`; set it to `false` to keep this project from being added to `go.work` automatically (see "Automatic go.work Workspace Membership Registration" below). |
+
+Without `GoVetTagSet` items, `go vet` runs once with `DefineConstants`. With them, it runs once
+per distinct `Tags`, which replace `DefineConstants` for that run; no `Tags` means no tags:
+
+```xml
+<ItemGroup>
+  <GoVetTagSet Include="plain" />
+  <GoVetTagSet Include="feature" Tags="feature;other" />
+</ItemGroup>
+```
+
+### Shared Libraries (c-shared)
+
+```xml
+<PropertyGroup>
+  <GoBuildMode>c-shared</GoBuildMode>
+</PropertyGroup>
+```
+
+Build, publish, `TargetPath` and clean agree on one file name, derived from `AssemblyName` and
+the target OS: `native.dll` on Windows, `libnative.dylib` on macOS, `libnative.so` elsewhere. Go
+writes the C header next to it (`native.h` / `libnative.h`); clean removes that header as well,
+but only if it starts with cgo's "Code generated" line. `OutputType` becomes `Library`.
+
+A C# project that calls into the library copies it like this:
+
+```xml
+<ProjectReference Include="../native/native.goproj"
+                  ReferenceOutputAssembly="false"
+                  OutputItemType="None"
+                  CopyToOutputDirectory="PreserveNewest" />
+```
+
+The library then lands in the output and publish directories of the C# project, where
+`[DllImport("native")]` finds it on every OS. Without the metadata the reference only orders the
+builds.
+
+c-shared needs cgo, which Go switches off when cross-compiling. For another OS, name a C compiler
+for that target; a failed build says so (error `GOCGO`):
+
+```xml
+<GoEnvironment Condition="'$(RuntimeIdentifier)' == 'linux-x64'"
+  >CGO_ENABLED=1;CC=zig cc -target x86_64-linux-gnu.2.28</GoEnvironment>
+```
+
+The RID chooses `GOOS` / `GOARCH` only when the `.goproj` itself is published. A build — including
+the one a referencing C# project triggers while it is published for a RID — targets the host
+unless `GoOs` / `GoArch` are set.
+
+### Solutions and `dotnet format`
+
+`dotnet sln add native.goproj` works for `.sln` and `.slnx`. In a hand-written `.slnx` the entry
+needs `Type="C#"`, because the solution is read before any project is (otherwise: MSB4025):
+
+```xml
+<Project Path="native/native.goproj" Type="C#" />
+```
+
+`dotnet format` on such a solution prints "Warnings were encountered while loading the workspace"
+and still exits with 0: it knows no language for `.goproj`, and nothing in an SDK can tell it one.
+Pointing it at the individual `.csproj` files avoids the message.
 
 ### Module References (GoModuleReference)
 
@@ -97,8 +164,21 @@ so the SDK sets `AppendTargetFrameworkToOutputPath=false` to remove it from the 
 
 The idempotency rule is the same as for `LangVersion`: when `go.mod` already contains the module
 (and the version matches), `go get` is not executed at all, the mtime of `go.mod` is unchanged,
-and incremental builds are not broken. Changing `Version` triggers re-resolution; **removing** a
-reference does not remove the require from `go.mod` — that is `go mod tidy`'s job.
+and incremental builds are not broken. Changing `Version` triggers re-resolution, followed by
+`go mod tidy`, so that `go.sum` does not keep the hashes of the old version. A reference no source
+file imports yet survives the tidy; any other require nothing imports is dropped, as by every
+`go mod tidy`. If tidy fails — it also resolves the imports of inactive build tags and of the
+tests of dependencies, and it does not see the sibling modules of a `go.work` — the build goes on
+with a `GOTIDY` warning. `GoModTidy=false` leaves the tidying to you. **Removing** a reference
+runs nothing: its require stays in `go.mod` until the next `go mod tidy`.
+
+`go.mod` changes while targets run, after every project has been evaluated. A project that reads
+`go.mod` in a property or item therefore sees the old content in the build that changes it. Run
+the target on its own first when that matters:
+
+```powershell
+dotnet build native.goproj -t:GoRestoreModules
+```
 
 You do not have to write it by hand either: in Solution Explorer, **right-click the
 "Dependencies" node → "Add Go Module Reference..."**, then enter the module path and version
@@ -141,7 +221,7 @@ Dependencies of Go projects always go through go.mod — **NuGet is completely i
 - **No restore is needed**: `SkipResolvePackageAssets=true` makes the build not require
   `obj/project.assets.json` at all (VS also does not run NuGet restore for .goproj);
 - **No per-project nuget.config is needed**: NuGet's only remaining purpose is for MSBuild to
-  resolve the SDK package `Sdk="Orikago.Sdk/0.1.0-preview"` itself — registering the local feed
+  resolve the SDK package `Sdk="Orikago.Sdk/0.2.0-preview"` itself — registering the local feed
   once at the user level is enough
   (`dotnet nuget add source <repo>\packages --name orikago-local --configfile
   %APPDATA%\NuGet\NuGet.Config`),
@@ -150,7 +230,8 @@ Dependencies of Go projects always go through go.mod — **NuGet is completely i
 
 `Configuration` also affects the compile flags:
 
-- **Debug**: `-gcflags "all=-N -l"` (disables optimization and inlining, which helps debugging).
+- **Debug**: `-gcflags "all=-N -l"` (disables optimization and inlining, which helps debugging)
+  unless `Optimize` is `true`.
 - **Release**: `-trimpath -ldflags "-s -w"` (strips path information and the symbol table,
   shrinking the executable).
 
@@ -309,7 +390,7 @@ This script:
    immediately.
 
 `nuget.config` already registers `./packages` as a local source (plus nuget.org), and
-`.goproj` references the version inline via `Sdk="Orikago.Sdk/0.1.0-preview"`, so no
+`.goproj` references the version inline via `Sdk="Orikago.Sdk/0.2.0-preview"`, so no
 `global.json` is needed.
 
 ## Honest Limitations (Non-Goals)
@@ -345,7 +426,7 @@ Packaging and installation (from the repository root):
 
 ```powershell
 dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
-dotnet new install Orikago.Templates::0.1.0-preview
+dotnet new install Orikago.Templates::0.2.0-preview
 ```
 
 Usage:
@@ -364,7 +445,7 @@ dotnet new go-lib -n MyLib -o MyLib
 
 Notes:
 
-- The generated project references the SDK via `Sdk="Orikago.Sdk/0.1.0-preview"`, so **the
+- The generated project references the SDK via `Sdk="Orikago.Sdk/0.2.0-preview"`, so **the
   project's location must be able to find the `./packages` local feed through `nuget.config`**
   (creating the project under this repository is sufficient; elsewhere, place a `nuget.config`
   pointing at that feed next to the project).
@@ -738,7 +819,9 @@ orikago/
 │       └── orikagoc/
 ├── test/
 │   └── csharp/
-│       └── Orikago.CodeAnalysis.Tests/
+│       ├── Orikago.CodeAnalysis.Tests/
+│       │   # Drives the SDK sources through the real dotnet, go and C compiler
+│       └── Orikago.Sdk.Tests/
 │   # The SDK itself (Sdk.props / Sdk.targets / packaging project)
 ├── sdk/Orikago.Sdk/
 │   # Orikago.Templates template package (go-console / go-lib)
@@ -760,7 +843,7 @@ orikago/
 ```
 
 Go test files must live next to the package they test — that is a Go toolchain
-rule, not a preference — so `test/` holds only the C# test project, and the Go
+rule, not a preference — so `test/` holds only the C# test projects, and the Go
 tests stay in `samples/hello/greeting_test.go` and alongside the sidecar
 sources.
 

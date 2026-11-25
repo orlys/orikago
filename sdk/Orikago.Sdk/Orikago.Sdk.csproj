@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>Orikago.Sdk</PackageId>
-    <Version>0.1.0-preview</Version>
+    <Version>0.2.0-preview</Version>
     <PackageType>MSBuildSdk</PackageType>
     <Description>MSBuild project SDK for building, running, testing, and publishing Go projects with the dotnet CLI.</Description>
     <Authors>Orlys</Authors>

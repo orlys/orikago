@@ -14,6 +14,12 @@
     <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
     <OutputType Condition="'$(OutputType)' == ''">Exe</OutputType>
     <AssemblyName Condition="'$(AssemblyName)' == ''">$(MSBuildProjectName)</AssemblyName>
+    <!-- "dotnet sln add" refuses a project whose extension it does not know unless -->
+    <!-- the project names its own type. The C# type is the one a .goproj already -->
+    <!-- carries in a hand-written solution, and the one the CLI knows how to build. -->
+    <DefaultProjectTypeGuid
+        Condition="'$(DefaultProjectTypeGuid)' == ''"
+        >{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</DefaultProjectTypeGuid>
     <!-- Same sanitization as the templates' goModuleSafe form: a VS-legal -->
     <!-- project name ("My App", "應用") is not a legal Go module path, and the -->
     <!-- default must never hand "go mod init" a name it rejects. Lowercased -->

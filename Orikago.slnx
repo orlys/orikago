@@ -3,6 +3,7 @@
   <Project Path="src/go/orikagoc/orikagoc.goproj" Type="C#" />
   <Project Path="src/csharp/Orikago.CodeAnalysis/Orikago.CodeAnalysis.csproj" />
   <Project Path="test/csharp/Orikago.CodeAnalysis.Tests/Orikago.CodeAnalysis.Tests.csproj" />
+  <Project Path="test/csharp/Orikago.Sdk.Tests/Orikago.Sdk.Tests.csproj" />
   <Project Path="templates/Orikago.Templates.csproj" />
   <!--
     Orikago.LanguageService is a classic VSSDK project (.NET Framework 4.7.2 +

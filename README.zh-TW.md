@@ -38,7 +38,7 @@ Orikago.Sdk 是一個以 NuGet 套件形式散發的 **MSBuild 專案 SDK**（`P
 專案檔可以直接寫成：
 
 ```xml
-<Project Sdk="Orikago.Sdk/0.1.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.0-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>
@@ -57,12 +57,74 @@ SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`d
 | 屬性 | 說明 |
 |------|------|
 | `LangVersion` | 對應 Go 的語言版本。SDK 會執行 `go mod edit -go=<版本>`，由 Go 工具鏈依 `go.mod` 的 `go` 指示詞把關語言功能。例如設定 `1.13` 後，使用泛型會得到編譯錯誤「requires go1.18 or later」——這是真實的語意，不是模擬。 |
-| `OutputType` | `Exe`（預設）：`go build -o` 產生執行檔；`Library`：`go build ./...` 只做編譯檢查，不產生執行檔。 |
+| `OutputType` | `Exe`（預設）：`go build -o` 產生執行檔；`Library`：`go build ./...` 只做編譯檢查，不寫出任何檔案（除非 `GoFlags` 自帶 `-o`）。 |
+| `GoBuildMode` | 設為 `c-shared` 時改為產生共用程式庫（詳見下方「共用程式庫（c-shared）」）。不支援其他值。 |
 | `DefineConstants` | 以分號分隔的清單，會轉換為 Go 的建置標籤（build tags）：`a;b` → `go build -tags "a,b"`。 |
-| `GoFlags` | 原封不動附加到 `go build` 命令列的額外旗標。 |
+| `GoFlags` | 原封不動附加到 `go build`、`go vet`、`go test` 命令列的額外旗標。其中的 `-buildmode` 若不會產生執行檔，`go test` 會忽略它。 |
+| `GoEnvironment` | 以分號分隔的 `NAME=value` 環境變數，套用到 `go build`／`vet`／`test`／`get`／`mod tidy`，建置與發行相同：`CGO_ENABLED=1;CC=gcc`。值裡的分號寫成 `%3B`；在命令列上，整份清單要放在內層引號裡：`'-p:GoEnvironment="CGO_ENABLED=1;CC=gcc"'`。目標平台用 `GoOs`／`GoArch` 設定；清單裡出現 `GOOS`／`GOARCH` 會報錯。 |
+| `GoBuildCommand` | 取代建置與發行時的 `go build`（預設值），例如換成在容器裡編譯的包裝指令。它在專案目錄執行，`GoEnvironment`、`GOOS`、`GOARCH` 都已設好，並原封不動收到 `go build` 之後的引數——路徑是主機路徑，所以包裝指令要自行轉換 `-o` 後面那一個。`go version`、`go mod`、`go vet`、`go test` 仍使用本機的 Go。 |
+| `Optimize` | 設為 `true` 時，Debug 建置不帶 `-gcflags "all=-N -l"`。 |
 | `GoOs`／`GoArch` | 覆寫 `GOOS`／`GOARCH` 環境變數，手動指定交叉編譯目標。 |
-| `RunGoVet` | 設為 `true` 時，建置完成後自動執行 `go vet`。 |
+| `RunGoVet` | 設為 `true` 時，建置完成後自動執行 `go vet`。`go vet` 一次只看一組標籤；要檢查多組時，每組加一個 `GoVetTagSet` 項目（見下方）。 |
+| `RunGoFmt` | 設為 `true` 時，`gofmt -l` 列出或無法剖析的每個原始碼檔都會讓建置失敗（錯誤碼 `GOFMT`）。略過 `vendor`、`testdata`、`_*`、`bin`、`obj` 目錄。 |
+| `GoModTidy` | 設為 `false` 時，`GoModuleReference` 變更後不執行 `go mod tidy`（見下方）。 |
 | `GoEnsureWorkspaceMembership` | 預設為 `true`；設為 `false` 可讓此專案不要自動加入 `go.work`（詳見下方「go.work 工作區成員自動註冊」）。 |
+
+沒有 `GoVetTagSet` 項目時，`go vet` 以 `DefineConstants` 執行一次；有的話，每一種 `Tags` 各執行一次，並取代該次的
+`DefineConstants`。省略 `Tags` 就是不帶標籤：
+
+```xml
+<ItemGroup>
+  <GoVetTagSet Include="plain" />
+  <GoVetTagSet Include="feature" Tags="feature;other" />
+</ItemGroup>
+```
+
+### 共用程式庫（c-shared）
+
+```xml
+<PropertyGroup>
+  <GoBuildMode>c-shared</GoBuildMode>
+</PropertyGroup>
+```
+
+建置、發行、`TargetPath` 與清除都使用同一個檔名，由 `AssemblyName` 與目標作業系統決定：Windows 是 `native.dll`、macOS 是
+`libnative.dylib`、其餘是 `libnative.so`。Go 會在旁邊寫出 C 標頭檔（`native.h`／`libnative.h`），清除時一併刪除，但只刪開頭是
+cgo「Code generated」那一行的檔案。`OutputType` 會變成 `Library`。
+
+要呼叫這個程式庫的 C# 專案這樣複製它：
+
+```xml
+<ProjectReference Include="../native/native.goproj"
+                  ReferenceOutputAssembly="false"
+                  OutputItemType="None"
+                  CopyToOutputDirectory="PreserveNewest" />
+```
+
+程式庫會出現在 C# 專案的輸出目錄與發行目錄，`[DllImport("native")]` 在各作業系統上都找得到。不加這些中繼資料時，參考只決定建置順序。
+
+c-shared 需要 cgo，而 Go 在交叉編譯時會關掉 cgo。要編譯到其他作業系統，請指定該目標的 C 編譯器；建置失敗時會提示（錯誤碼
+`GOCGO`）：
+
+```xml
+<GoEnvironment Condition="'$(RuntimeIdentifier)' == 'linux-x64'"
+  >CGO_ENABLED=1;CC=zig cc -target x86_64-linux-gnu.2.28</GoEnvironment>
+```
+
+RID 只在發行 `.goproj` 本身時決定 `GOOS`／`GOARCH`。建置（包括 C# 專案針對某個 RID 發行時所觸發的建置）以主機為目標，除非設定
+`GoOs`／`GoArch`。
+
+### 方案與 `dotnet format`
+
+`dotnet sln add native.goproj` 可用於 `.sln` 與 `.slnx`。手寫 `.slnx` 時，項目必須加上 `Type="C#"`，因為方案在任何專案載入之前就要讀完（否則報
+MSB4025）：
+
+```xml
+<Project Path="native/native.goproj" Type="C#" />
+```
+
+對這種方案執行 `dotnet format` 會印出「Warnings were encountered while loading the
+workspace」，結束代碼仍是 0：它不知道 `.goproj` 是哪種語言，SDK 也無從告知。改為指定個別的 `.csproj` 就不會出現這則訊息。
 
 ### 模組參考（GoModuleReference）
 
@@ -78,7 +140,17 @@ SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`d
 ```
 
 等冪規則與 `LangVersion` 相同：`go.mod` 已含該模組（且版本吻合）時完全不執行 `go get`，`go.mod` 的 mtime 不變，不會破壞增量建置。改變
-`Version` 會重新解析；**移除**參考不會從 `go.mod` 移除 require——那是 `go mod tidy` 的職責。
+`Version` 會重新解析，接著執行 `go mod tidy`，`go.sum` 才不會留下舊版本的雜湊。原始碼還沒匯入的參考會保留下來；其他沒有被匯入的 require 會被移除，與平常的 `go mod tidy`
+相同。若 tidy 失敗（它還會解析未啟用的建置標籤與相依模組測試的匯入，而且看不到 `go.work` 裡的其他模組），建置會繼續，只出現
+`GOTIDY` 警告。設定 `GoModTidy=false` 就由您自行整理。**移除**參考不會執行任何命令：它的 require 會留在 `go.mod`，直到下一次
+`go mod tidy`。
+
+`go.mod` 是在目標執行期間修改的，此時所有專案都已評估完畢。因此，在屬性或項目中讀取 `go.mod` 的專案，在改動它的那一次建置裡會讀到舊內容。
+有影響時，請先單獨執行這個目標：
+
+```powershell
+dotnet build native.goproj -t:GoRestoreModules
+```
 
 也可以不用手寫：在方案總管的 **「相依性（Dependencies）」節點上按右鍵 →「加入 Go 模組參考… / Add Go Module
 Reference…」**，輸入模組路徑與版本（留空＝最新版）即可。命令由 VSIX 的 `OrikagoPackage` 提供，多語系（預設英文，另有 zh-TW／zh-CN 字串集，跟隨
@@ -110,14 +182,14 @@ Go 專案的相依一律走 go.mod——**NuGet 對 `.goproj` 是完全隱形的
   的可見性只看「方案是否開啟」，與專案型別無關，單靠專案能力只會讓命令留在選單上、點下去回報「專案不支援」；
 - **不需要還原**：`SkipResolvePackageAssets=true` 讓建置完全不要求 `obj/project.assets.json`（VS 對 .goproj
   也不會執行 NuGet 還原）；
-- **不需要個別專案的 nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.1.0-preview"` 這個 SDK
+- **不需要個別專案的 nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.2.0-preview"` 這個 SDK
   套件本身——把本機摘要來源註冊到使用者層級一次即可（`dotnet nuget add source <repo>\packages --name orikago-local
   --configfile %APPDATA%\NuGet\NuGet.Config`），或把 nupkg 發行到自有 NuGet 伺服器。已驗證：清空全域快取後，無任何
   nuget.config 的專案照常解析 SDK 並建置。
 
 另外，`Configuration` 也會影響編譯旗標：
 
-- **Debug**：`-gcflags "all=-N -l"`（停用最佳化與內嵌，利於偵錯）。
+- **Debug**：`-gcflags "all=-N -l"`（停用最佳化與內嵌，利於偵錯），`Optimize` 為 `true` 時除外。
 - **Release**：`-trimpath -ldflags "-s -w"`（去除路徑資訊與符號表，縮小執行檔）。
 
 ## 常用命令
@@ -240,7 +312,7 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 2. 刪除 NuGet 全域快取中的舊版本（`%USERPROFILE%\.nuget\packages\orikago.sdk`），確保重新封裝後的內容立即生效。
 
 `nuget.config` 已設定 `./packages` 為本機來源（另含 nuget.org），且 `.goproj` 直接以
-`Sdk="Orikago.Sdk/0.1.0-preview"` 內嵌版本參照，不需要 `global.json`。
+`Sdk="Orikago.Sdk/0.2.0-preview"` 內嵌版本參照，不需要 `global.json`。
 
 ## 誠實的限制（非目標）
 
@@ -270,7 +342,7 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 
 ```powershell
 dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
-dotnet new install Orikago.Templates::0.1.0-preview
+dotnet new install Orikago.Templates::0.2.0-preview
 ```
 
 使用方式：
@@ -288,7 +360,7 @@ dotnet new go-lib -n MyLib -o MyLib
 
 注意事項：
 
-- 產生的專案以 `Sdk="Orikago.Sdk/0.1.0-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages`
+- 產生的專案以 `Sdk="Orikago.Sdk/0.2.0-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages`
   本機摘要來源**（在本存放庫底下建立專案即可；在其他位置請於專案旁放一份指向該摘要來源的 `nuget.config`）。
 - 專案名稱小寫後若不是合法的 Go 識別項（含連字號、空白、開頭為數字），`go-lib` 產生的套件／模組名稱會無效；範本引擎不會代為淨化。
 - 修改範本後重新安裝前，請先 `dotnet new uninstall Orikago.Templates` 或調高 `PackageVersion`。
@@ -577,7 +649,9 @@ orikago/
 │       └── orikagoc/
 ├── test/
 │   └── csharp/
-│       └── Orikago.CodeAnalysis.Tests/
+│       ├── Orikago.CodeAnalysis.Tests/
+│       │   # 以真正的 dotnet、go 與 C 編譯器執行 SDK 原始碼
+│       └── Orikago.Sdk.Tests/
 │   # SDK 本體（Sdk.props／Sdk.targets／封裝專案）
 ├── sdk/Orikago.Sdk/
 │   # Orikago.Templates 範本套件（go-console／go-lib）

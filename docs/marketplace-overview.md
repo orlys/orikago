@@ -41,7 +41,7 @@ same F5. One solution, one IDE, one CI command for both languages.
 ## Getting started
 
 ```powershell
-dotnet new install Orikago.Templates::0.1.0-preview
+dotnet new install Orikago.Templates::0.2.0-preview
 dotnet new go-console -n Hello
 ```
 
@@ -49,7 +49,7 @@ Open the folder's `.goproj` (or add it to a solution) and press **F5**.
 A minimal project file:
 
 ```xml
-<Project Sdk="Orikago.Sdk/0.1.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.0-preview">
   <PropertyGroup>
     <LangVersion>1.21</LangVersion>
   </PropertyGroup>

@@ -23,19 +23,19 @@ VS version either.
 ## Publish
 
 ```powershell
-# 1. Tag the commit being released
-git tag v0.1.0
-git push origin v0.1.0
+# 1. Tag the commit being released. The tag also runs .github/workflows/publish.yml,
+#    which packs both NuGet packages and pushes them to nuget.org.
+git tag v0.2.0
+git push origin v0.2.0
 
 # 2. Create the release and attach every artifact
-gh release create v0.1.0 (Get-ChildItem ./dist/* | ForEach-Object FullName) `
-    --title "v0.1.0" --notes-file release-notes.md
-
-# 3. Push the NuGet packages to nuget.org (API key scoped to Orikago.*)
-dotnet nuget push "./dist/*.nupkg" `
-    --api-key $env:NUGET_ORG_API_KEY `
-    --source https://api.nuget.org/v3/index.json
+gh release create v0.2.0 (Get-ChildItem ./dist/* | ForEach-Object FullName) `
+    --title "v0.2.0" --notes-file release-notes.md
 ```
+
+The workflow authenticates with nuget.org Trusted Publishing, so there is no API key to
+store. It needs one policy on nuget.org: repository owner `orlys`, repository `orikago`,
+workflow file `publish.yml`.
 
 ## Consuming the published SDK
 

@@ -15,10 +15,31 @@ internal static class ProcessRunner
     /// <paramref name="timeout"/> is killed together with its descendants and reported as a
     /// <see cref="TimeoutException"/>.
     /// </remarks>
+    public static Task<(int ExitCode, string StandardOutput, string StandardError)> RunAsync(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        string? workingDirectory,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        return RunAsync(
+            fileName,
+            arguments,
+            workingDirectory,
+            environmentVariables: new Dictionary<string, string>(StringComparer.Ordinal),
+            timeout,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="fileName"/> with <paramref name="environmentVariables"/> added to the
+    /// inherited environment.
+    /// </summary>
     public static async Task<(int ExitCode, string StandardOutput, string StandardError)> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         string? workingDirectory,
+        IReadOnlyDictionary<string, string> environmentVariables,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -37,6 +58,11 @@ internal static class ProcessRunner
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
+        }
+
+        foreach (var (name, value) in environmentVariables)
+        {
+            startInfo.Environment[name] = value;
         }
 
         if (workingDirectory is not null)

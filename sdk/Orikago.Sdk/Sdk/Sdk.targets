@@ -1056,12 +1056,21 @@ finally
 
   <Target Name="_GoPreparePublishSettings" DependsOnTargets="GoPrepareBuildSettings">
     <PropertyGroup>
-      <!-- Explicit GoOS/GoArch win over the RID map; default is the host. -->
+      <!-- Explicit GoOS/GoArch win over the RID map; default is the host. A value equal -->
+      <!-- to the GOOS/GOARCH variable came from the shell (MSBuild reads environment -->
+      <!-- variables as properties), and there the RID is the more explicit choice. -->
       <_GoPublishOS>$(GoOS)</_GoPublishOS>
-      <_GoPublishOS Condition="'$(_GoPublishOS)' == ''">$(_GoRidOS)</_GoPublishOS>
+      <_GoPublishOS
+          Condition="'$(_GoPublishOS)' == '' Or
+                     ('$(_GoRidOS)' != '' And
+                      '$(GoOS)' == '$([System.Environment]::GetEnvironmentVariable(`GOOS`))')"
+          >$(_GoRidOS)</_GoPublishOS>
       <_GoPublishArchitecture>$(GoArch)</_GoPublishArchitecture>
-      <_GoPublishArchitecture Condition="'$(_GoPublishArchitecture)' == ''"
-        >$(_GoRidArchitecture)</_GoPublishArchitecture>
+      <_GoPublishArchitecture
+          Condition="'$(_GoPublishArchitecture)' == '' Or
+                     ('$(_GoRidArchitecture)' != '' And
+                      '$(GoArch)' == '$([System.Environment]::GetEnvironmentVariable(`GOARCH`))')"
+          >$(_GoRidArchitecture)</_GoPublishArchitecture>
 
       <_GoPublishFileName>$(_GoFileNameElsewhere)</_GoPublishFileName>
       <_GoPublishFileName

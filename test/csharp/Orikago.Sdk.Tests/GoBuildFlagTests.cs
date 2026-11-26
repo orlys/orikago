@@ -156,4 +156,41 @@ public sealed class GoBuildFlagTests
         // Assert
         Assert.Equal("wrapped", output);
     }
+
+    [Fact]
+    public async Task Build_GoflagsEnvironmentVariable_IsLeftToGo()
+    {
+        // Arrange
+        // -count only exists for "go test": go skips it for "go build", the command line must not
+        using var project = CreateExecutable();
+        project.EnvironmentVariables["GOFLAGS"] = "-count=1";
+
+        // Act
+        await project.RunDotnetSuccessfullyAsync(["build", "demo"], CancellationToken.None);
+
+        // Assert
+        Assert.True(File.Exists(GetExecutable(project, "demo/bin/Debug")));
+    }
+
+    [Fact]
+    public async Task Publish_GoosEnvironmentVariable_DoesNotOverrideTheRuntimeIdentifier()
+    {
+        // Arrange
+        using var project = CreateExecutable();
+        project.EnvironmentVariables["GOOS"] = "linux";
+        project.EnvironmentVariables["GOARCH"] = "arm64";
+
+        // Act
+        await project.RunDotnetSuccessfullyAsync(
+            arguments: ["publish", "demo", "-r", "win-x64", "-o", "out"],
+            CancellationToken.None);
+        var (_, buildInformation) = await project.RunAsync(
+            fileName: "go",
+            arguments: ["version", "-m", project.GetPath("out/demo.exe")],
+            CancellationToken.None);
+
+        // Assert
+        Assert.Contains("GOOS=windows", buildInformation, StringComparison.Ordinal);
+        Assert.Contains("GOARCH=amd64", buildInformation, StringComparison.Ordinal);
+    }
 }

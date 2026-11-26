@@ -32,6 +32,14 @@
             '[^A-Za-z0-9._~-]',
             '_').Trim('.'))</GoModuleName>
 
+    <!-- MSBuild reads environment variables as properties regardless of case, so GOFLAGS -->
+    <!-- arrives as GoFlags. go applies GOFLAGS itself, to the commands that know each flag; -->
+    <!-- repeated on every command line, "-count=1" breaks go build. Before the project body -->
+    <!-- the value can only come from the environment or a global property, and a global -->
+    <!-- property ignores this assignment. -->
+    <GoFlags
+        Condition="'$(GoFlags)' == '$([System.Environment]::GetEnvironmentVariable(`GOFLAGS`))'" />
+
     <!-- Microsoft.NET.Sdk sets this only for .cs/.vb/.fsproj. A .goproj leaves it -->
     <!-- empty, which is what tells Sdk.targets to wire up the CPS design-time -->
     <!-- targets by hand (see CustomBeforeMicrosoftCommonTargets there). -->

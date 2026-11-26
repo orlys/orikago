@@ -25,6 +25,9 @@ internal sealed class TemporaryGoProject : IDisposable
 
     public string Directory { get; }
 
+    /// <summary>Environment variables added for every command this project runs.</summary>
+    public Dictionary<string, string> EnvironmentVariables { get; } = new(StringComparer.Ordinal);
+
     /// <summary>The file name a c-shared build should get on this machine.</summary>
     public static string GetHostLibraryName(string name)
     {
@@ -95,6 +98,7 @@ internal sealed class TemporaryGoProject : IDisposable
             fileName,
             arguments,
             workingDirectory: Directory,
+            environmentVariables: EnvironmentVariables,
             timeout: TimeSpan.FromMinutes(5),
             cancellationToken);
         return (exitCode, (standardOutput + standardError).Trim());

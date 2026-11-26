@@ -60,11 +60,11 @@ SDK 內部會匯入 `Microsoft.NET.Sdk`（讓 Visual Studio 能載入專案、`d
 | `OutputType` | `Exe`（預設）：`go build -o` 產生執行檔；`Library`：`go build ./...` 只做編譯檢查，不寫出任何檔案（除非 `GoFlags` 自帶 `-o`）。 |
 | `GoBuildMode` | 設為 `c-shared` 時改為產生共用程式庫（詳見下方「共用程式庫（c-shared）」）。不支援其他值。 |
 | `DefineConstants` | 以分號分隔的清單，會轉換為 Go 的建置標籤（build tags）：`a;b` → `go build -tags "a,b"`。 |
-| `GoFlags` | 原封不動附加到 `go build`、`go vet`、`go test` 命令列的額外旗標。其中的 `-buildmode` 若不會產生執行檔，`go test` 會忽略它。 |
+| `GoFlags` | 原封不動附加到 `go build`、`go vet`、`go test` 命令列的額外旗標。其中的 `-buildmode` 若不會產生執行檔，`go test` 會忽略它。MSBuild 會把環境變數讀成屬性，但環境變數 `GOFLAGS` 不會被帶進來：go 會自己套用它，而且只套用到認得該旗標的指令。 |
 | `GoEnvironment` | 以分號分隔的 `NAME=value` 環境變數，套用到 `go build`／`vet`／`test`／`get`／`mod tidy`，建置與發行相同：`CGO_ENABLED=1;CC=gcc`。值裡的分號寫成 `%3B`；在命令列上，整份清單要放在內層引號裡：`'-p:GoEnvironment="CGO_ENABLED=1;CC=gcc"'`。目標平台用 `GoOs`／`GoArch` 設定；清單裡出現 `GOOS`／`GOARCH` 會報錯。 |
 | `GoBuildCommand` | 取代建置與發行時的 `go build`（預設值），例如換成在容器裡編譯的包裝指令。它在專案目錄執行，`GoEnvironment`、`GOOS`、`GOARCH` 都已設好，並原封不動收到 `go build` 之後的引數——路徑是主機路徑，所以包裝指令要自行轉換 `-o` 後面那一個。`go version`、`go mod`、`go vet`、`go test` 仍使用本機的 Go。 |
 | `Optimize` | 設為 `true` 時，Debug 建置不帶 `-gcflags "all=-N -l"`。 |
-| `GoOs`／`GoArch` | 覆寫 `GOOS`／`GOARCH` 環境變數，手動指定交叉編譯目標。 |
+| `GoOs`／`GoArch` | 覆寫 `GOOS`／`GOARCH` 環境變數，手動指定交叉編譯目標。只來自這兩個環境變數的值（MSBuild 會把它們讀成這兩個屬性）不會蓋過 `dotnet publish -r` 的 RID。 |
 | `RunGoVet` | 設為 `true` 時，建置完成後自動執行 `go vet`。`go vet` 一次只看一組標籤；要檢查多組時，每組加一個 `GoVetTagSet` 項目（見下方）。 |
 | `RunGoFmt` | 設為 `true` 時，`gofmt -l` 列出或無法剖析的每個原始碼檔都會讓建置失敗（錯誤碼 `GOFMT`）。略過 `vendor`、`testdata`、`_*`、`bin`、`obj` 目錄。 |
 | `GoModTidy` | 設為 `false` 時，`GoModuleReference` 變更後不執行 `go mod tidy`（見下方）。 |

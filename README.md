@@ -53,7 +53,7 @@ Orikago.Sdk is an **MSBuild project SDK** distributed as a NuGet package
 (`PackageType=MSBuildSdk`). It lets a `.goproj` project file be written directly as:
 
 ```xml
-<Project Sdk="Orikago.Sdk/0.2.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.1-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>
@@ -221,7 +221,7 @@ Dependencies of Go projects always go through go.mod — **NuGet is completely i
 - **No restore is needed**: `SkipResolvePackageAssets=true` makes the build not require
   `obj/project.assets.json` at all (VS also does not run NuGet restore for .goproj);
 - **No per-project nuget.config is needed**: NuGet's only remaining purpose is for MSBuild to
-  resolve the SDK package `Sdk="Orikago.Sdk/0.2.0-preview"` itself — registering the local feed
+  resolve the SDK package `Sdk="Orikago.Sdk/0.2.1-preview"` itself — registering the local feed
   once at the user level is enough
   (`dotnet nuget add source <repo>\packages --name orikago-local --configfile
   %APPDATA%\NuGet\NuGet.Config`),
@@ -390,7 +390,7 @@ This script:
    immediately.
 
 `nuget.config` already registers `./packages` as a local source (plus nuget.org), and
-`.goproj` references the version inline via `Sdk="Orikago.Sdk/0.2.0-preview"`, so no
+`.goproj` references the version inline via `Sdk="Orikago.Sdk/0.2.1-preview"`, so no
 `global.json` is needed.
 
 ## Honest Limitations (Non-Goals)
@@ -426,7 +426,7 @@ Packaging and installation (from the repository root):
 
 ```powershell
 dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
-dotnet new install Orikago.Templates::0.2.0-preview
+dotnet new install Orikago.Templates@0.2.1-preview
 ```
 
 Usage:
@@ -445,7 +445,7 @@ dotnet new go-lib -n MyLib -o MyLib
 
 Notes:
 
-- The generated project references the SDK via `Sdk="Orikago.Sdk/0.2.0-preview"`, so **the
+- The generated project references the SDK via `Sdk="Orikago.Sdk/0.2.1-preview"`, so **the
   project's location must be able to find the `./packages` local feed through `nuget.config`**
   (creating the project under this repository is sufficient; elsewhere, place a `nuget.config`
   pointing at that feed next to the project).

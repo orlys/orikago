@@ -42,7 +42,7 @@ workflow file `publish.yml`.
 The packages are on nuget.org, so the default NuGet source is enough:
 
 ```powershell
-dotnet new install Orikago.Templates::0.2.0-preview
+dotnet new install Orikago.Templates@0.2.1-preview
 ```
 
 ## Versioning

@@ -38,7 +38,7 @@ Orikago.Sdk 是一個以 NuGet 套件形式散發的 **MSBuild 專案 SDK**（`P
 專案檔可以直接寫成：
 
 ```xml
-<Project Sdk="Orikago.Sdk/0.2.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.1-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>
@@ -182,7 +182,7 @@ Go 專案的相依一律走 go.mod——**NuGet 對 `.goproj` 是完全隱形的
   的可見性只看「方案是否開啟」，與專案型別無關，單靠專案能力只會讓命令留在選單上、點下去回報「專案不支援」；
 - **不需要還原**：`SkipResolvePackageAssets=true` 讓建置完全不要求 `obj/project.assets.json`（VS 對 .goproj
   也不會執行 NuGet 還原）；
-- **不需要個別專案的 nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.2.0-preview"` 這個 SDK
+- **不需要個別專案的 nuget.config**：NuGet 僅剩的用途是 MSBuild 解析 `Sdk="Orikago.Sdk/0.2.1-preview"` 這個 SDK
   套件本身——把本機摘要來源註冊到使用者層級一次即可（`dotnet nuget add source <repo>\packages --name orikago-local
   --configfile %APPDATA%\NuGet\NuGet.Config`），或把 nupkg 發行到自有 NuGet 伺服器。已驗證：清空全域快取後，無任何
   nuget.config 的專案照常解析 SDK 並建置。
@@ -312,7 +312,7 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 2. 刪除 NuGet 全域快取中的舊版本（`%USERPROFILE%\.nuget\packages\orikago.sdk`），確保重新封裝後的內容立即生效。
 
 `nuget.config` 已設定 `./packages` 為本機來源（另含 nuget.org），且 `.goproj` 直接以
-`Sdk="Orikago.Sdk/0.2.0-preview"` 內嵌版本參照，不需要 `global.json`。
+`Sdk="Orikago.Sdk/0.2.1-preview"` 內嵌版本參照，不需要 `global.json`。
 
 ## 誠實的限制（非目標）
 
@@ -342,7 +342,7 @@ SDK 原始檔位於 `sdk/Orikago.Sdk/`。修改後執行：
 
 ```powershell
 dotnet pack templates/Orikago.Templates.csproj -c Release -o packages
-dotnet new install Orikago.Templates::0.2.0-preview
+dotnet new install Orikago.Templates@0.2.1-preview
 ```
 
 使用方式：
@@ -360,7 +360,7 @@ dotnet new go-lib -n MyLib -o MyLib
 
 注意事項：
 
-- 產生的專案以 `Sdk="Orikago.Sdk/0.2.0-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages`
+- 產生的專案以 `Sdk="Orikago.Sdk/0.2.1-preview"` 參照 SDK，因此**專案所在位置必須能透過 `nuget.config` 找到 `./packages`
   本機摘要來源**（在本存放庫底下建立專案即可；在其他位置請於專案旁放一份指向該摘要來源的 `nuget.config`）。
 - 專案名稱小寫後若不是合法的 Go 識別項（含連字號、空白、開頭為數字），`go-lib` 產生的套件／模組名稱會無效；範本引擎不會代為淨化。
 - 修改範本後重新安裝前，請先 `dotnet new uninstall Orikago.Templates` 或調高 `PackageVersion`。

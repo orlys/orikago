@@ -2,7 +2,7 @@
 // uses for ".msbuildproj" (Common7\IDE\CommonExtensions\Microsoft\Project\msbuildproj.pkgdef):
 // a dedicated project-type GUID whose "Package" is the generic CPS package
 // {3347BEE8-D7A1-4082-95E4-38A439553CC2}. CPS evaluates the project file with
-// MSBuild, so Sdk="Orikago.Sdk/0.2.0-preview" resolves normally and builds drive the
+// MSBuild, so Sdk="Orikago.Sdk/0.2.1-preview" resolves normally and builds drive the
 // Go toolchain.
 //
 // Why not append "goproj" to PossibleProjectExtensions of the C#/SDK factory

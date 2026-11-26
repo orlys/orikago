@@ -2,7 +2,7 @@
 
 # .SYNOPSIS
 #     Packs Orikago.Sdk into the local NuGet feed (./packages) and clears the
-#     global package cache entry so a re-pack of version 0.2.0-preview takes effect.
+#     global package cache entry so a re-pack of version 0.2.1-preview takes effect.
 #
 # .NOTES
 #     Idempotent: safe to run repeatedly.
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "dotnet pack failed with exit code $LASTEXITCODE"
 }
 
-# NuGet caches by id/version; version stays 0.2.0-preview, so evict the cached copy
+# NuGet caches by id/version; version stays 0.2.1-preview, so evict the cached copy
 # or consumers would keep restoring the stale package. The global-packages
 # folder can be relocated (NUGET_PACKAGES / nuget.config), so ask NuGet for
 # the real location instead of assuming %USERPROFILE%/.nuget/packages.
@@ -45,4 +45,4 @@ foreach ($cacheEntry in $cacheCandidates) {
     }
 }
 
-Write-Host 'Done. Orikago.Sdk 0.2.0-preview is available from the local feed.' -ForegroundColor Green
+Write-Host 'Done. Orikago.Sdk 0.2.1-preview is available from the local feed.' -ForegroundColor Green

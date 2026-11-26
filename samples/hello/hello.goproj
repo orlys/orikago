@@ -1,4 +1,4 @@
-<Project Sdk="Orikago.Sdk/0.2.0-preview">
+<Project Sdk="Orikago.Sdk/0.2.1-preview">
 
   <PropertyGroup>
     <LangVersion>1.13</LangVersion>

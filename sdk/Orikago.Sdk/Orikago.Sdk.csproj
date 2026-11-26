@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>Orikago.Sdk</PackageId>
-    <Version>0.2.0-preview</Version>
+    <Version>0.2.1-preview</Version>
     <PackageType>MSBuildSdk</PackageType>
     <Description>MSBuild project SDK for building, running, testing, and publishing Go projects with the dotnet CLI.</Description>
     <Authors>Orlys</Authors>
@@ -13,6 +13,7 @@
     <RepositoryUrl>https://github.com/orlys/orikago</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>go;golang;msbuild;sdk;visual-studio</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <!-- This package carries only MSBuild logic (Sdk/Sdk.props + Sdk/Sdk.targets); -->
     <!-- ship no assembly, no deps. -->
@@ -32,6 +33,7 @@
   <ItemGroup>
     <!-- The SDK itself: everything under Sdk/ lands at Sdk/ inside the .nupkg. -->
     <None Include="Sdk\**" Pack="true" PackagePath="Sdk\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

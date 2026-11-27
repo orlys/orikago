@@ -1,7 +1,7 @@
 # To do
 
-Open items left after the 0.2.1-preview release (2026-11-26).
+Open items left after the 0.2.1-preview release (2026-11-27).
 
-- [ ] Create the GitHub Releases and rebuild the VSIX, which is still version 0.1.0. The VSIX
-      needs the Visual Studio extension-development workload, which this machine lacks.
-- [ ] Verify the published packages on Linux and macOS. The releases were only checked on Windows.
+- [ ] Install the 0.2.1 VSIX in Visual Studio and open a `.goproj`. It was built with
+      VS's MSBuild.exe without the extension-development workload; its files match the
+      0.1.0 VSIX one for one, but it has not been run in the IDE.

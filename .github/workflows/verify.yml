@@ -1,6 +1,6 @@
-# Checks a release that is already on nuget.org on Linux, macOS and Windows: installs the
-# templates, then builds, runs, tests and publishes the projects they create. On Linux it
-# also builds through GoBuildCommand with a wrapper that compiles in a container.
+# Checks a release that is already on nuget.org on Linux, macOS and Windows, with the .NET 10 and
+# 11 SDKs: installs the templates, then builds, runs, tests and publishes the projects they create.
+# On Linux it also builds through GoBuildCommand with a wrapper that compiles in a container.
 name: verify
 
 on:
@@ -18,6 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        sdk: ["10.0", "11.0"]
         include:
           - os: ubuntu-latest
             rid: linux-x64
@@ -34,7 +36,12 @@ jobs:
     steps:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ matrix.sdk }}.x
+
+      # The runner images carry a newer SDK as well; global.json picks the one under test
+      - run: |
+          dotnet new globaljson --sdk-version "${{ matrix.sdk }}.100" --roll-forward latestFeature
+          dotnet --version | grep "^${{ matrix.sdk }}\."
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:

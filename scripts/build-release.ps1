@@ -5,9 +5,10 @@
 #     packages (the MSBuild SDK and the project templates).
 #
 # .DESCRIPTION
-#     The VSIX needs the Visual Studio extension-development workload, so this
-#     runs MSBuild.exe from the VS installation rather than the dotnet CLI. The
-#     NuGet packages build with the dotnet CLI.
+#     The VSIX builds with MSBuild.exe from the VS installation rather than the
+#     dotnet CLI. The VSSDK targets come from the Microsoft.VSSDK.BuildTools
+#     package, so the extension-development workload is not needed. The NuGet
+#     packages build with the dotnet CLI.
 #
 #     Artifacts are hashed at the end so a published file can be matched against
 #     the build it came from.
@@ -40,13 +41,12 @@ $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer
 $vswhereArguments = @(
     '-latest'
     '-products', '*'
-    '-requires', 'Microsoft.VisualStudio.Workload.VisualStudioExtension'
+    '-requires', 'Microsoft.Component.MSBuild'
     '-property', 'installationPath'
 )
 $vsPath = & $vswhere @vswhereArguments
 if (-not $vsPath) {
-    throw 'No Visual Studio installation with the extension development workload was found; ' +
-        'the VSIX cannot be built here.'
+    throw 'No Visual Studio installation with MSBuild was found; the VSIX cannot be built here.'
 }
 $msbuild = Join-Path $vsPath 'MSBuild/Current/Bin/MSBuild.exe'
 $vsixProject = Join-Path $languageServiceDirectory 'Orikago.LanguageService.csproj'

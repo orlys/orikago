@@ -35,17 +35,17 @@ if ($NoBuild) {
     $vsPath = & $vswhere -latest -products '*' -property installationPath
     if (-not $vsPath) { throw "No Visual Studio installation was found." }
 } else {
-    # Building the VSIX needs the extension-development workload (MSBuild with
-    # the VSSDK targets).
+    # Building the VSIX needs VS's MSBuild.exe; the VSSDK targets come from the
+    # Microsoft.VSSDK.BuildTools package, not the extension-development workload.
     $vswhereArguments = @(
         '-latest'
         '-products', '*'
-        '-requires', 'Microsoft.VisualStudio.Workload.VisualStudioExtension'
+        '-requires', 'Microsoft.Component.MSBuild'
         '-property', 'installationPath'
     )
     $vsPath = & $vswhere @vswhereArguments
     if (-not $vsPath) {
-        throw 'No Visual Studio installation with the extension development workload was found. ' +
+        throw 'No Visual Studio installation with MSBuild was found. ' +
             'To install a prebuilt VSIX without it, use -NoBuild.'
     }
 }

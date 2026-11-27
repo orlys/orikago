@@ -15,10 +15,11 @@ Three artifacts ship together, and they do **not** all go to the same place.
 ./scripts/build-release.ps1
 ```
 
-The VSIX requires the Visual Studio extension-development workload, so this
-must run on a machine with Visual Studio installed — it cannot be built by the
-`dotnet` CLI alone, and a plain GitHub-hosted runner will not have the matching
-VS version either.
+The VSIX builds with Visual Studio's MSBuild.exe, so this must run on a machine
+with Visual Studio installed — it cannot be built by the `dotnet` CLI alone, and
+a plain GitHub-hosted runner will not have the matching VS version either. The
+extension-development workload is not needed: the VSSDK targets come from the
+`Microsoft.VSSDK.BuildTools` package.
 
 ## Publish
 
@@ -31,6 +32,10 @@ git push origin v0.2.0
 # 2. Create the release and attach every artifact
 gh release create v0.2.0 (Get-ChildItem ./dist/* | ForEach-Object FullName) `
     --title "v0.2.0" --notes-file release-notes.md
+
+# 3. Once nuget.org has indexed the packages (several minutes), check them on Linux,
+#    macOS and Windows with .github/workflows/verify.yml
+gh workflow run verify.yml -f version=0.2.0-preview
 ```
 
 The workflow authenticates with nuget.org Trusted Publishing, so there is no API key to

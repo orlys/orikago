@@ -1,0 +1,88 @@
+# Checks a release that is already on nuget.org on Linux, macOS and Windows: installs the
+# templates, then builds, runs, tests and publishes the projects they create. On Linux it
+# also builds through GoBuildCommand with a wrapper that compiles in a container.
+name: verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version on nuget.org, for example 0.2.1-preview
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+
+      - run: dotnet new install "Orikago.Templates@$VERSION"
+
+      - name: Console app
+        run: |
+          dotnet new go-console -n MyTool -o MyTool
+          grep -F "Orikago.Sdk/$VERSION" MyTool/MyTool.goproj
+          test "$(dotnet run --project MyTool/MyTool.goproj)" = "Hello, World!"
+          dotnet test MyTool/MyTool.goproj
+
+      - name: Class library
+        run: |
+          dotnet new go-lib -n MyLib -o MyLib
+          dotnet build MyLib/MyLib.goproj
+
+      - name: Publish for this machine
+        run: |
+          dotnet publish MyTool/MyTool.goproj -r ${{ matrix.rid }} -o out
+          ./out/MyTool
+
+      # go applies GOFLAGS itself; -count is go test only and must not reach go build
+      # (--no-incremental, or the build above leaves nothing to run). GOOS/GOARCH from
+      # the shell must not override the RID.
+      - name: Go variables in the environment
+        run: |
+          GOFLAGS=-count=1 dotnet build MyTool/MyTool.goproj --no-incremental
+          GOOS=windows GOARCH=amd64 dotnet publish MyTool/MyTool.goproj -r linux-arm64 -o cross
+          go version -m cross/MyTool | grep -F "GOOS=linux"
+          go version -m cross/MyTool | grep -F "GOARCH=arm64"
+
+      - name: GoBuildCommand in a container
+        if: runner.os == 'Linux'
+        run: |
+          wrapper="$RUNNER_TEMP/go-build-in-container"
+          # The project directory is mounted at the same path, so the paths go build gets stay valid
+          cat > "$wrapper" <<'EOF'
+          #!/bin/sh
+          exec docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:$PWD" -w "$PWD" \
+              -e GOOS -e GOARCH -e GOCACHE=/tmp/gocache -e GOPATH=/tmp/gopath \
+              golang:1.24 go build "$@"
+          EOF
+          chmod +x "$wrapper"
+          dotnet new go-console -n Boxed -o Boxed
+          dotnet build Boxed/Boxed.goproj "-p:GoBuildCommand=$wrapper"
+          go version Boxed/bin/Debug/Boxed | grep -F "go1.24"
+          test "$(Boxed/bin/Debug/Boxed)" = "Hello, World!"

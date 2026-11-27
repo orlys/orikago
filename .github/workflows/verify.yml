@@ -47,7 +47,8 @@ jobs:
         run: |
           dotnet new go-console -n MyTool -o MyTool
           grep -F "Orikago.Sdk/$VERSION" MyTool/MyTool.goproj
-          test "$(dotnet run --project MyTool/MyTool.goproj)" = "Hello, World!"
+          dotnet run --project MyTool/MyTool.goproj | tee run.txt
+          grep -Fx "Hello, World!" run.txt
           dotnet test MyTool/MyTool.goproj
 
       - name: Class library
@@ -85,4 +86,4 @@ jobs:
           dotnet new go-console -n Boxed -o Boxed
           dotnet build Boxed/Boxed.goproj "-p:GoBuildCommand=$wrapper"
           go version Boxed/bin/Debug/Boxed | grep -F "go1.24"
-          test "$(Boxed/bin/Debug/Boxed)" = "Hello, World!"
+          Boxed/bin/Debug/Boxed | grep -Fx "Hello, World!"

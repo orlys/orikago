@@ -1,0 +1,6 @@
+# GitHub's Linguist does not know these extensions and shows them as plain text.
+# They are MSBuild / VSSDK XML, like .csproj, and .pkgdef is the .reg format.
+*.goproj linguist-language=XML
+*.vsct linguist-language=XML
+*.imagemanifest linguist-language=XML
+*.pkgdef linguist-language=windows-registry-entries
